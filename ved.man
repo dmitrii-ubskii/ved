@@ -1,0 +1,124 @@
+NAME
+
+ved - vi-like text editor
+
+SYNOPSIS
+
+ved [-tn] [-gprog] file [+1,c msg]                   /* Apple // utility */
+
+DESCRIPTION
+
+
+ved is a screen oriented text editor  that has some of the features of  the
+UNIX vi editor.
+
+If  ved is  invoked with  a file name,  that file  will be  loaded into the
+memory buffer, otherwise it will be  empty. ved will only edit text  files:
+binary  files cannot be edited.  ved does all its  editing in memory and is
+thus limited in the  size of files  that it will edit.  In ved, the  memory
+buffer is never completely empty. There will always be at least one newline
+in the buffer.
+
+ THE SCREEN
+
+    ved has a  1000 character limit  on the size  of a line.  If a line  is
+    longer  than the width of the screen, it will wrap to the next line. If
+    a line starts at the bottom of the screen, and its too wide to fit, the
+    line  will  not  be  displayed.  Instead,  the  '@'  character  will be
+    displayed. Likewise, at the end of  the file, all lines beyond the  end
+    will consist only of a single '-' on each line.
+
+    A  number of commands take  a numeric prefix. This  prefix is echoed on
+    the status line as it is typed.
+
+ MOVING AROUND IN THE FILE
+
+    The normal mode of ved is command mode. During command mode, there  are
+    a  number of ways to  move the cursor around  the screen and around the
+    whole file.
+
+        newline      - move to beginning of the next line.
+        -            - move to the start of the previous line.
+        space        - move to the next character of the line.
+        backspace    - move to the previous character.
+        0            - move to the first character of this line.
+        $            - move to the last character of this line.
+        h            - move to the top line of the screen.
+        l            - move to the bottom line of the screen.
+        b            - move to the first line of the file.
+        g            - move to the n'th line of the file.
+        /string      - move to hte next occurence of 'string'.
+
+ DELETING TEXT
+
+    When the cursor is in the appropriate spot, there are two commands used
+    to delete existing text.
+
+        x     - delete  characters on the  current  line, beginning at  the
+                cursor and continuing up to, but not including the newline.
+        dd    - delete lines starting with the current line.
+
+    The  x and dd commands can be prefixed with a number, which defines the
+    number of  characters  or  lines  to be  deleted.  If  a  number  isn't
+    specified, just one character or line is deleted.
+
+    Note that deleting the last  character of the line (newline  character)
+    causes the following line to be appended to the current line.
+
+ INSERTING TEXT
+
+    To  add new text, hitting 'i' key will cause the top line of the screen
+    to indicated that you  are now in   mode. To exit insert  mode,
+    type  ESCAPE.  To  insert  a control  character  which  means something
+    special to ved into a text  file, first type control-v followed be  the
+    control  character itself.  Control characters  are displayed  as '^X',
+    where X is the appropiate character.
+
+    Typing 'o' will cause a new line to be created below the current  line,
+    and  the cursor will be placed on  that line and the editor placed into
+     mode.
+
+ MOVING TEXT AROUND
+
+    There are three commands  used for moving  text around. These  commands
+    make  use of a 1000 character yank  buffer. The contents of this buffer
+    is retained across files.
+
+        yy    - yank lines  starting with the  current  line into  the yank
+                buffer.
+        yd    - yank lines starting  with the  current line and then delete
+                them.
+        p     - "put" the lines in the yank  buffer after the current line.
+                The yank buffer is not modified.
+
+    A  number can be prefixed to the  yank commands, defining the number of
+    lines to  be yanked.  If a  number isn't  specified, just  one line  is
+    yanked.
+
+ MISCELLANEOUS COMMANDS
+
+    The  'z' command redraws the screen withthe current line in the center
+    of the screen.
+
+    The 'r' command repalaces the character under the cursor with the  next
+    character typed.
+
+ FILE-RELATED COMMANDS
+
+    When in command mode, if the ':' key is hit, a ':' will be displayed on
+    the status  line.  At this  point,  a number  of  special  file-related
+    commands may be given.
+
+        :f            - displays info about the current file.
+        :w file       - writes the buffer to the specified file name.
+        :w            - writes the buffer to the last specfied file.
+        :e[!] file    - clears the buffer and prepares file for editing.
+        :r file       - reads the named file into the buffer.
+        :q[!]         - exits the editor.
+
+    In the above  table, square brackets  surrounding a character  indicate
+    that  the  character is  optional. The  exclamation  mark tells  ved to
+    execute  the commands in which it's  specified, even if the file that's
+    currently being edited has been modified  since it was last written  to
+    disk.
+
