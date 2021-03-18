@@ -24,9 +24,9 @@ endif()
 
 add_compile_options(
         -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused
-        -Woverloaded-virtual -Wpedantic -Wconversion -Wsign-conversion
-        -Wmisleading-indentation -Wnull-dereference -Wdouble-promotion -Wformat=2
-        -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wuseless-cast)
+        -Woverloaded-virtual -Wpedantic -Wmisleading-indentation -Wnull-dereference
+        -Wdouble-promotion -Wformat=2 -Wduplicated-cond -Wduplicated-branches -Wlogical-op
+        -Wuseless-cast)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_options(-s)
