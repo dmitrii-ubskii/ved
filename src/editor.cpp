@@ -11,6 +11,7 @@ Editor::Editor()
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.refresh();
+	repaint();
 }
 
 void Editor::handleKey(int ch)
