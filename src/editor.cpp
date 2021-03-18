@@ -8,7 +8,7 @@
 Editor::Editor()
 	: context{}
 	, editorWindow{{{0, 0}, {0, context.get_rect().s.h - 1}}}
-	, statusLine{{{0, context.get_rect().s.h}, {}}}
+	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.refresh();
 }
