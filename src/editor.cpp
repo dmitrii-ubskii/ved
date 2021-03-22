@@ -166,7 +166,10 @@ int Editor::mainLoop()
 		// FIXME shouldn't this work with context.getch() as well?
 		// Something funky is afoot.
 		auto ch = editorWindow.getch();
-		if (ch == '\\') { break; }
+		if (ch == (037 & 'q'))  // Ctrl+Q
+		{
+			break;
+		}
 		handleKey(ch);
 	}
 	return 0;
