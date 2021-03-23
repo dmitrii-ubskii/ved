@@ -16,7 +16,7 @@ public:
 	int mainLoop();
 
 private:
-	void handleKey(int);
+	void handleKey(ncurses::Key);
 	void repaint();
 
 	ncurses::Ncurses context;

@@ -3,11 +3,7 @@
 #include <cctype>
 #include <numeric>
 
-#include <curses.h>
 #include <string>
-#undef getch
-#undef mvaddstr
-#undef mvaddnstr
 
 void Editor::Buffer::erase(int line, int col, int count)
 {
@@ -69,24 +65,23 @@ Editor::Editor()
 	repaint();
 }
 
-void Editor::handleKey(int ch)
+void Editor::handleKey(ncurses::Key k)
 {
 	auto line = cursorPosition.y + topLine;
 
-	// FIXME move keycodes into an enum in ncursespp
-	switch (ch)
+	switch (k)
 	{
-		case KEY_LEFT:
+		case ncurses::Key::Left:
 			cursorPosition.x = std::max(1, cursorPosition.x) - 1;
 			break;
 
-		case KEY_RIGHT:
+		case ncurses::Key::Right:
 			if (buffer.is_empty())
 				break;
 			cursorPosition.x = std::min(cursorPosition.x+1, static_cast<int>(buffer.getLine(line).length()));
 			break;
 
-		case KEY_UP:
+		case ncurses::Key::Up:
 			if (cursorPosition.y > 0)
 			{
 				cursorPosition.y--;
@@ -94,7 +89,7 @@ void Editor::handleKey(int ch)
 			}
 			break;
 
-		case KEY_DOWN:
+		case ncurses::Key::Down:
 			if (cursorPosition.y < buffer.numLines() - 1)
 			{
 				cursorPosition.y++;
@@ -102,7 +97,7 @@ void Editor::handleKey(int ch)
 			}
 			break;
 
-		case KEY_BACKSPACE:
+		case ncurses::Key::Backspace:
 			if (cursorPosition.x > 0)
 			{
 				buffer.erase(line, cursorPosition.x-1, 1);
@@ -110,13 +105,14 @@ void Editor::handleKey(int ch)
 			}
 			break;
 
-		case '\n':
+		case ncurses::Key::Enter:
 			buffer.breakLine(line, cursorPosition.x);
 			cursorPosition.x = 0;
 			cursorPosition.y++;
 			break;
 
 		default:
+			auto ch = static_cast<int>(k);
 			if (ch < 256 && std::isprint(ch))
 			{
 				buffer.insert(line, cursorPosition.x, static_cast<char>(ch));
@@ -146,14 +142,7 @@ void Editor::repaint()
 		}
 	}
 
-	statusLine.clear();
-	statusLine.mvaddstr(
-		{0,0},
-		std::to_string(buffer.numLines()) + " lines, " + 
-		std::to_string(buffer.length()) + " chars."
-	);
-	statusLine.refresh();
-
+	editorWindow.refresh();
 	editorWindow.move(cursorPosition);
 
 	context.refresh();
@@ -163,14 +152,16 @@ int Editor::mainLoop()
 {
 	while (true)
 	{
-		// FIXME shouldn't this work with context.getch() as well?
-		// Something funky is afoot.
 		auto ch = editorWindow.getch();
-		if (ch == (037 & 'q'))  // Ctrl+Q
+		if (ch == ncurses::Key::Ctrl({'q'}))  // Ctrl+Q
 		{
 			break;
 		}
 		handleKey(ch);
+
+		statusLine.clear();
+		statusLine.mvaddstr({0,0}, "<" + std::to_string(ch) + ">");
+		statusLine.refresh();
 	}
 	return 0;
 }
