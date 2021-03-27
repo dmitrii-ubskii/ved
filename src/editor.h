@@ -42,7 +42,7 @@ private:
 		std::string const& getLine(int idx) const;
 
 	private:
-		std::vector<std::string> lines { "" };
+		std::vector<std::string> lines{""};
 	} buffer;
 
 	ncurses::Point cursorPosition {0, 0};
