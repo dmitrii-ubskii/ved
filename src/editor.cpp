@@ -153,7 +153,7 @@ int Editor::mainLoop()
 	while (true)
 	{
 		auto ch = editorWindow.getch();
-		if (ch == ncurses::Key::Ctrl({'q'}))  // Ctrl+Q
+		if (ch == ncurses::Key::Ctrl({'c'}))  // Ctrl+C
 		{
 			break;
 		}
