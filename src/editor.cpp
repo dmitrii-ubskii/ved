@@ -57,7 +57,8 @@ std::string const& Editor::Buffer::getLine(int idx) const
 
 Editor::Editor()
 	: context{}
-	, editorWindow{{{0, 0}, {0, context.get_rect().s.h - 1}}}
+	, editorWindow{{{3, 0}, {0, context.get_rect().s.h - 1}}}
+	, lineNumbers({{0, 0}, {3, context.get_rect().s.h - 1}})
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.raw(true);
@@ -67,58 +68,76 @@ Editor::Editor()
 
 void Editor::handleKey(ncurses::Key k)
 {
-	auto line = cursorPosition.y + topLine;
-
 	switch (k)
 	{
 		case ncurses::Key::Left:
-			cursorPosition.x = std::max(1, cursorPosition.x) - 1;
+			cursorCol = std::max(1, cursorCol) - 1;
 			break;
 
 		case ncurses::Key::Right:
 			if (buffer.is_empty())
 				break;
-			cursorPosition.x = std::min(cursorPosition.x+1, static_cast<int>(buffer.getLine(line).length()));
+			cursorCol = std::min(cursorCol+1, static_cast<int>(buffer.getLine(cursorLine).length()));
 			break;
 
 		case ncurses::Key::Up:
-			if (cursorPosition.y > 0)
+			if (cursorLine > 0)
 			{
-				cursorPosition.y--;
-				cursorPosition.x = std::min(cursorPosition.x, static_cast<int>(buffer.getLine(line-1).length()));
+				cursorLine--;
+				if (topLine > cursorLine)
+				{
+					topLine = cursorLine;
+				}
+				cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 			}
 			break;
 
 		case ncurses::Key::Down:
-			if (cursorPosition.y < buffer.numLines() - 1)
+			if (cursorLine < buffer.numLines() - 1)
 			{
-				cursorPosition.y++;
-				cursorPosition.x = std::min(cursorPosition.x, static_cast<int>(buffer.getLine(line+1).length()));
+				cursorLine++;
+				cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 			}
 			break;
 
 		case ncurses::Key::Backspace:
-			if (cursorPosition.x > 0)
+			if (cursorCol > 0)
 			{
-				buffer.erase(line, cursorPosition.x-1, 1);
-				cursorPosition.x--;
+				buffer.erase(cursorLine, cursorCol-1, 1);
+				cursorCol--;
 			}
 			break;
 
 		case ncurses::Key::Enter:
-			buffer.breakLine(line, cursorPosition.x);
-			cursorPosition.x = 0;
-			cursorPosition.y++;
+			buffer.breakLine(cursorLine, cursorCol);
+			cursorCol = 0;
+			cursorLine++;
 			break;
 
 		default:
 			auto ch = static_cast<int>(k);
 			if (ch < 256 && std::isprint(ch))
 			{
-				buffer.insert(line, cursorPosition.x, static_cast<char>(ch));
-				cursorPosition.x++;
+				buffer.insert(cursorLine, cursorCol, static_cast<char>(ch));
+				cursorCol++;
 			}
 			break;
+	}
+
+	while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
+	{
+		topLine++;
+	}
+	if (not wrap)
+	{
+		while (cursorCol - leftCol >= editorWindow.get_rect().s.w)
+		{
+			leftCol += 20;
+		}
+		while (cursorCol - leftCol < 0)
+		{
+			leftCol -= 20;
+		}
 	}
 
 	repaint();
@@ -127,25 +146,69 @@ void Editor::handleKey(ncurses::Key k)
 void Editor::repaint()
 {
 	editorWindow.clear();
-	if (not wrap)
+	lineNumbers.clear();
+	auto lineY = 0;
+	for (auto i = topLine; i < buffer.numLines(); i++)
 	{
-		for (auto i = 0; i < editorWindow.get_rect().s.h; i++)
+		if (wrap)
 		{
-			if (i < buffer.numLines())
+			editorWindow.mvaddstr({0, lineY}, buffer.getLine(i));
+		}
+		else
+		{
+			if (buffer.getLine(i).length() > static_cast<std::size_t>(leftCol))
 			{
-				editorWindow.mvaddnstr({0, i}, buffer.getLine(i + topLine), editorWindow.get_rect().s.w);
-			}
-			else
-			{
-				editorWindow.mvaddstr({0, i}, "~");
+				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(leftCol), editorWindow.get_rect().s.w);
 			}
 		}
+		lineNumbers.mvaddnstr({0, lineY}, std::to_string(i + 1), lineNumbers.get_rect().s.w);
+		lineY += getLineVirtualHeight(buffer.getLine(i));
+	}
+	for (auto y = lineY; y < editorWindow.get_rect().s.h; y++)
+	{
+		editorWindow.mvaddstr({0, y}, "~");
 	}
 
+	lineNumbers.refresh();
+
 	editorWindow.refresh();
-	editorWindow.move(cursorPosition);
+	editorWindow.move(getScreenCursorPosition());
 
 	context.refresh();
+}
+
+std::size_t Editor::getLineLength(std::string_view lineContents) const
+{
+	return lineContents.length();
+}
+
+std::size_t Editor::getLineVirtualHeight(std::string_view lineContents) const
+{
+	if (not wrap)
+	{
+		return 1;
+	}
+	return (lineContents.length() + 1) / editorWindow.get_rect().s.w + 1;
+}
+
+ncurses::Point Editor::getScreenCursorPosition() const
+{
+	ncurses::Point pos{0, 0};
+	for (auto i = topLine; i < cursorLine; i++)
+	{
+		pos.y += getLineVirtualHeight(buffer.getLine(i));
+	}
+
+	if (wrap)
+	{
+		pos.x = cursorCol % editorWindow.get_rect().s.w;
+		pos.y += cursorCol / editorWindow.get_rect().s.w;
+	}
+	else
+	{
+		pos.x = cursorCol - leftCol;
+	}
+	return pos;
 }
 
 int Editor::mainLoop()

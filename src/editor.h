@@ -22,9 +22,16 @@ private:
 	ncurses::Ncurses context;
 
 	ncurses::Window editorWindow;
+	ncurses::Window lineNumbers;
 	ncurses::Window statusLine;
 
+	ncurses::Point getScreenCursorPosition() const;
+
+	std::size_t getLineLength(std::string_view lineContents) const;
+	std::size_t getLineVirtualHeight(std::string_view lineContents) const;
+
 	int topLine = 0;
+	int leftCol = 0;
 	bool wrap = false;
 
 	class Buffer
@@ -45,7 +52,8 @@ private:
 		std::vector<std::string> lines{""};
 	} buffer;
 
-	ncurses::Point cursorPosition {0, 0};
+	int cursorLine{0};
+	int cursorCol{0};
 };
 
 #endif // SRC_EDITOR_H_
