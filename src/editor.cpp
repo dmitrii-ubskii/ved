@@ -89,7 +89,7 @@ void Editor::handleKey(ncurses::Key k)
 	switch (k)
 	{
 		case ncurses::Key::Left:
-			cursorCol = std::max(1, cursorCol) - 1;
+			cursorCol = std::max(0, cursorCol - 1);
 			break;
 
 		case ncurses::Key::Right:
@@ -102,10 +102,6 @@ void Editor::handleKey(ncurses::Key k)
 			if (cursorLine > 0)
 			{
 				cursorLine--;
-				if (topLine > cursorLine)
-				{
-					topLine = cursorLine;
-				}
 				cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 			}
 			break;
@@ -142,6 +138,10 @@ void Editor::handleKey(ncurses::Key k)
 			break;
 	}
 
+	if (topLine > cursorLine)
+	{
+		topLine = cursorLine;
+	}
 	while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
 	{
 		topLine++;
