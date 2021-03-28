@@ -102,7 +102,6 @@ void Editor::handleKey(ncurses::Key k)
 			if (cursorLine > 0)
 			{
 				cursorLine--;
-				cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 			}
 			break;
 
@@ -110,7 +109,6 @@ void Editor::handleKey(ncurses::Key k)
 			if (cursorLine < buffer.numLines() - 1)
 			{
 				cursorLine++;
-				cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 			}
 			break;
 
@@ -154,6 +152,7 @@ void Editor::handleKey(ncurses::Key k)
 			break;
 	}
 
+	cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
 	if (topLine > cursorLine)
 	{
 		topLine = cursorLine;
