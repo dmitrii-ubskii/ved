@@ -5,6 +5,8 @@
 #include <numeric>
 #include <string>
 
+#include "ncursespp/color.h"
+
 void Editor::Buffer::erase(int line, int col, int count)
 {
 	lines[line].erase(col, count);
@@ -88,6 +90,10 @@ Editor::Editor()
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.raw(true);
+	editorWindow.setbackground(ncurses::Color::Blue);
+	editorWindow.setcolor(ncurses::Color::Yellow, ncurses::Color::Blue);
+	lineNumbers.setbackground(ncurses::Color::Purple);
+	lineNumbers.setcolor(ncurses::Color::Gray, ncurses::Color::Purple);
 	context.refresh();
 	repaint();
 }
