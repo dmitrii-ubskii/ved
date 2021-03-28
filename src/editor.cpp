@@ -161,11 +161,19 @@ void Editor::handleKey(ncurses::Key k)
 			break;
 
 		case ncurses::Key::PageUp:
-			cursorLine = std::max(0, cursorLine - 10);
+			topLine = std::max(0, topLine - editorWindow.get_rect().s.h);
+			if (cursorLine >= topLine + editorWindow.get_rect().s.h)
+			{
+				cursorLine = topLine + editorWindow.get_rect().s.h - 1;
+			}
 			break;
 
 		case ncurses::Key::PageDown:
-			cursorLine = std::min(cursorLine+10, buffer.numLines() - 1);
+			topLine = std::min(topLine + editorWindow.get_rect().s.h, buffer.numLines() - 1);
+			if (cursorLine < topLine)
+			{
+				cursorLine = topLine;
+			}
 			break;
 
 		default:
