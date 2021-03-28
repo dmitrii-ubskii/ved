@@ -198,8 +198,8 @@ void Editor::handleKey(ncurses::Key k)
 
 void Editor::repaint()
 {
-	editorWindow.clear();
-	lineNumbers.clear();
+	editorWindow.erase();
+	lineNumbers.erase();
 	auto lineY = 0;
 	for (auto i = topLine; i < buffer.numLines(); i++)
 	{
@@ -226,8 +226,6 @@ void Editor::repaint()
 
 	editorWindow.refresh();
 	editorWindow.move(getScreenCursorPosition());
-
-	context.refresh();
 }
 
 std::size_t Editor::getLineLength(std::string_view lineContents) const
@@ -275,7 +273,7 @@ int Editor::mainLoop()
 		}
 		handleKey(ch);
 
-		statusLine.clear();
+		statusLine.erase();
 		statusLine.mvaddstr({0,0}, "<" + std::to_string(ch) + ">");
 		statusLine.refresh();
 	}
