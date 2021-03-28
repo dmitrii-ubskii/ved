@@ -1,0 +1,3 @@
+[submodule "extern/ncursespp"]
+	path = extern/ncursespp
+	url = git@github.com:dmitrii-ubskii/ncursespp.git
