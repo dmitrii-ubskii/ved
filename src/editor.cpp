@@ -30,6 +30,20 @@ void Editor::Buffer::breakLine(int line, int col)
 	}
 }
 
+void Editor::Buffer::joinLines(int line, int n)
+{
+	if (n <= 1)  // nothing to be done
+	{
+		return;
+	}
+	lines[line] = std::accumulate(
+		lines.cbegin() + line,
+		lines.cbegin() + line + n,
+		std::string{}, [](auto const& acc, auto const& lhs) { return acc + lhs; }
+	);
+	lines.erase(lines.cbegin() + line + 1, lines.cbegin() + line + n);
+}
+
 int Editor::Buffer::length() const
 {
 	return std::accumulate(
@@ -117,6 +131,12 @@ void Editor::handleKey(ncurses::Key k)
 			{
 				buffer.erase(cursorLine, cursorCol-1, 1);
 				cursorCol--;
+			}
+			else if (cursorLine > 0)
+			{
+				cursorCol = buffer.getLine(cursorLine-1).length();
+				cursorLine--;
+				buffer.joinLines(cursorLine, 2);
 			}
 			break;
 

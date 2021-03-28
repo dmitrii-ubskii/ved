@@ -42,6 +42,7 @@ private:
 		void erase(int line, int col, int count);
 		void insert(int line, int col, char);
 		void breakLine(int line, int col);
+		void joinLines(int line, int n);
 
 		int length() const;
 		int numLines() const;
