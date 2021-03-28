@@ -128,6 +128,22 @@ void Editor::handleKey(ncurses::Key k)
 			cursorLine++;
 			break;
 
+		case ncurses::Key::Home:
+			cursorCol = 0;
+			break;
+
+		case ncurses::Key::End:
+			cursorCol = static_cast<int>(buffer.getLine(cursorLine).length());
+			break;
+
+		case ncurses::Key::PageUp:
+			cursorLine = std::max(0, cursorLine - 10);
+			break;
+
+		case ncurses::Key::PageDown:
+			cursorLine = std::min(cursorLine+10, buffer.numLines() - 1);
+			break;
+
 		default:
 			auto ch = static_cast<int>(k);
 			if (ch < 256 && std::isprint(ch))
