@@ -3,3 +3,6 @@
 .cache/
 build/
 compile_commands.json
+
+# Language server cache
+.ccls-cache/
