@@ -1,6 +1,7 @@
 #ifndef SRC_EDITOR_H_
 #define SRC_EDITOR_H_
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@ public:
 	Editor();
 
 	int mainLoop();
+	void open(std::filesystem::path);
 
 private:
 	void handleKey(ncurses::Key);
@@ -45,6 +47,7 @@ private:
 		int numLines() const;
 
 		bool is_empty() const;
+		void read(std::filesystem::path);
 
 		std::string const& getLine(int idx) const;
 

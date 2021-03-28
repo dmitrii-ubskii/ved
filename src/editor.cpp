@@ -1,8 +1,8 @@
 #include "editor.h"
 
 #include <cctype>
+#include <fstream>
 #include <numeric>
-
 #include <string>
 
 void Editor::Buffer::erase(int line, int col, int count)
@@ -48,6 +48,18 @@ bool Editor::Buffer::is_empty() const
 	return numLines() == 0;
 }
 
+void Editor::Buffer::read(std::filesystem::path filePath)
+{
+	lines.clear();
+	auto fileHandler = std::ifstream(filePath);
+	auto lineBuffer = std::string{};
+	while (not fileHandler.eof())
+	{
+		std::getline(fileHandler, lineBuffer);
+		lines.push_back(lineBuffer);
+	}
+}
+
 std::string const& Editor::Buffer::getLine(int idx) const
 {
 	return lines[idx];
@@ -63,6 +75,12 @@ Editor::Editor()
 {
 	context.raw(true);
 	context.refresh();
+	repaint();
+}
+
+void Editor::open(std::filesystem::path path)
+{
+	buffer.read(path);
 	repaint();
 }
 
