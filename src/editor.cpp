@@ -259,6 +259,19 @@ void Editor::repaint()
 
 	lineNumbers.refresh();
 
+	statusLine.erase();
+	switch (mode)
+	{
+		case Mode::Normal:
+			statusLine.mvaddstr({0,0}, "-- NORMAL --");
+			break;
+
+		case Mode::Insert:
+			statusLine.mvaddstr({0,0}, "-- INSERT --");
+			break;
+	}
+	statusLine.refresh();
+
 	editorWindow.refresh();
 	editorWindow.move(getScreenCursorPosition());
 }
@@ -307,10 +320,6 @@ int Editor::mainLoop()
 			break;
 		}
 		handleKey(ch);
-
-		statusLine.erase();
-		statusLine.mvaddstr({0,0}, "<" + std::to_string(ch) + ">");
-		statusLine.refresh();
 	}
 	return 0;
 }
