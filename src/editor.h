@@ -56,6 +56,11 @@ private:
 		std::vector<std::string> lines{""};
 	} buffer;
 
+	enum class Mode
+	{
+		Normal, Insert
+	} mode = Mode::Normal;
+
 	int cursorLine{0};
 	int cursorCol{0};
 };
