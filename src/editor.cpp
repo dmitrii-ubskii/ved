@@ -106,6 +106,57 @@ void Editor::open(std::filesystem::path path)
 
 void Editor::handleKey(ncurses::Key k)
 {
+	switch (k)
+	{
+		case ncurses::Key::Left:
+			cursorCol = std::max(0, cursorCol - 1);
+			break;
+
+		case ncurses::Key::Right:
+			if (buffer.is_empty())
+				break;
+			cursorCol = std::min(cursorCol+1, static_cast<int>(buffer.getLine(cursorLine).length()));
+			break;
+
+		case ncurses::Key::Up:
+			if (cursorLine > 0)
+			{
+				cursorLine--;
+			}
+			break;
+
+		case ncurses::Key::Down:
+			if (cursorLine < buffer.numLines() - 1)
+			{
+				cursorLine++;
+			}
+			break;
+
+		case ncurses::Key::Home:
+			cursorCol = 0;
+			break;
+
+		case ncurses::Key::End:
+			cursorCol = static_cast<int>(buffer.getLine(cursorLine).length());
+			break;
+
+		case ncurses::Key::PageUp:
+			topLine = std::max(0, topLine - editorWindow.get_rect().s.h);
+			if (cursorLine >= topLine + editorWindow.get_rect().s.h)
+			{
+				cursorLine = topLine + editorWindow.get_rect().s.h - 1;
+			}
+			break;
+
+		case ncurses::Key::PageDown:
+			topLine = std::min(topLine + editorWindow.get_rect().s.h, buffer.numLines() - 1);
+			if (cursorLine < topLine)
+			{
+				cursorLine = topLine;
+			}
+			break;
+	}
+
 	switch (mode)
 	{
 		case Mode::Normal:
@@ -113,6 +164,22 @@ void Editor::handleKey(ncurses::Key k)
 			{
 				case 'i':
 					mode = Mode::Insert;
+					break;
+
+				case ncurses::Key::Backspace:
+					if (cursorCol > 0)
+					{
+						cursorCol--;
+					}
+					else if (cursorLine > 0)
+					{
+						cursorCol = buffer.getLine(cursorLine-1).length();
+						cursorLine--;
+					}
+					break;
+
+				case ncurses::Key::Enter:
+					cursorLine++;
 					break;
 
 				default:
@@ -125,30 +192,6 @@ void Editor::handleKey(ncurses::Key k)
 			{
 				case ncurses::Key::Escape:
 					mode = Mode::Normal;
-					break;
-
-				case ncurses::Key::Left:
-					cursorCol = std::max(0, cursorCol - 1);
-					break;
-
-				case ncurses::Key::Right:
-					if (buffer.is_empty())
-						break;
-					cursorCol = std::min(cursorCol+1, static_cast<int>(buffer.getLine(cursorLine).length()));
-					break;
-
-				case ncurses::Key::Up:
-					if (cursorLine > 0)
-					{
-						cursorLine--;
-					}
-					break;
-
-				case ncurses::Key::Down:
-					if (cursorLine < buffer.numLines() - 1)
-					{
-						cursorLine++;
-					}
 					break;
 
 				case ncurses::Key::Backspace:
@@ -171,30 +214,6 @@ void Editor::handleKey(ncurses::Key k)
 					cursorLine++;
 					break;
 
-				case ncurses::Key::Home:
-					cursorCol = 0;
-					break;
-
-				case ncurses::Key::End:
-					cursorCol = static_cast<int>(buffer.getLine(cursorLine).length());
-					break;
-
-				case ncurses::Key::PageUp:
-					topLine = std::max(0, topLine - editorWindow.get_rect().s.h);
-					if (cursorLine >= topLine + editorWindow.get_rect().s.h)
-					{
-						cursorLine = topLine + editorWindow.get_rect().s.h - 1;
-					}
-					break;
-
-				case ncurses::Key::PageDown:
-					topLine = std::min(topLine + editorWindow.get_rect().s.h, buffer.numLines() - 1);
-					if (cursorLine < topLine)
-					{
-						cursorLine = topLine;
-					}
-					break;
-
 				default:
 					auto ch = static_cast<int>(k);
 					if (ch < 256 && std::isprint(ch))
@@ -207,7 +226,14 @@ void Editor::handleKey(ncurses::Key k)
 			break;
 	}
 
-	cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
+	if (mode == Mode::Insert)
+	{
+		cursorCol = std::min(cursorCol, static_cast<int>(buffer.getLine(cursorLine).length()));
+	}
+	else if (mode == Mode::Normal)
+	{
+		cursorCol = std::min(cursorCol, std::max(0, static_cast<int>(buffer.getLine(cursorLine).length()) - 1));
+	}
 	if (topLine > cursorLine)
 	{
 		topLine = cursorLine;
