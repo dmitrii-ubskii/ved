@@ -166,6 +166,23 @@ void Editor::handleKey(ncurses::Key k)
 					mode = Mode::Insert;
 					break;
 
+				case '0':
+					cursorCol = 0;
+					break;
+
+				case '$':
+					cursorCol = static_cast<int>(buffer.getLine(cursorLine).length());
+					break;
+
+				case ' ':
+					cursorCol++;
+					if (cursorCol >= static_cast<int>(buffer.getLine(cursorLine).length()) && cursorLine < buffer.numLines() - 1)
+					{
+						cursorLine++;
+						cursorCol = 0;
+					}
+					break;
+
 				case ncurses::Key::Backspace:
 					if (cursorCol > 0)
 					{
@@ -178,8 +195,33 @@ void Editor::handleKey(ncurses::Key k)
 					}
 					break;
 
+				case '-':
+					if (cursorLine > 0)
+					{
+						cursorLine--;
+						cursorCol = 0;
+					}
+					break;
+
 				case ncurses::Key::Enter:
-					cursorLine++;
+					if (cursorLine < buffer.numLines() - 1)
+					{
+						cursorLine++;
+						cursorCol = 0;
+					}
+					break;
+
+				case 'h':
+					cursorLine = topLine;
+					break;
+
+				case 'l':
+					cursorLine = std::min(topLine + editorWindow.get_rect().s.h - 1, buffer.numLines() - 1);
+					break;
+
+				case 'b':
+					cursorLine = 0;
+					topLine = 0;
 					break;
 
 				default:
