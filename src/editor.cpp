@@ -90,9 +90,9 @@ Editor::Editor()
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.raw(true);
-	editorWindow.setbackground(ncurses::Color::Blue);
+	editorWindow.setbackground(ncurses::Color::Yellow, ncurses::Color::Blue);
 	editorWindow.setcolor(ncurses::Color::Yellow, ncurses::Color::Blue);
-	lineNumbers.setbackground(ncurses::Color::Purple);
+	lineNumbers.setbackground(ncurses::Color::Gray, ncurses::Color::Purple);
 	lineNumbers.setcolor(ncurses::Color::Gray, ncurses::Color::Purple);
 	context.refresh();
 	repaint();
