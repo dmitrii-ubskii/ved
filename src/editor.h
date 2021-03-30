@@ -9,6 +9,12 @@
 #include "ncursespp/ncurses.h"
 #include "ncursespp/window.h"
 
+struct CursorPosition
+{
+	int line;
+	int col;
+};
+
 class Editor
 {
 public:
@@ -39,10 +45,10 @@ private:
 	class Buffer
 	{
 	public:
-		void erase(int line, int col, int count);
-		void insert(int line, int col, char);
-		void breakLine(int line, int col);
-		void joinLines(int line, int n);
+		void erase(CursorPosition, int count);
+		void insert(CursorPosition, char);
+		void breakLine(CursorPosition);
+		void joinLines(int line, int count);
 
 		int length() const;
 		int numLines() const;
@@ -61,8 +67,7 @@ private:
 		Normal, Insert
 	} mode = Mode::Normal;
 
-	int cursorLine{0};
-	int cursorCol{0};
+	CursorPosition cursor{0, 0};
 };
 
 #endif // SRC_EDITOR_H_
