@@ -314,8 +314,8 @@ auto ops = std::unordered_map<ncurses::Key, OperatorFunction>{
 
 Editor::Editor()
 	: context{}
-	, editorWindow{{{3, 0}, {0, context.get_rect().s.h - 1}}}
-	, lineNumbers({{0, 0}, {3, context.get_rect().s.h - 1}})
+	, editorWindow{{{4, 0}, {0, context.get_rect().s.h - 1}}}
+	, lineNumbers({{0, 0}, {4, context.get_rect().s.h - 1}})
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.raw(true);
@@ -442,7 +442,7 @@ void Editor::repaint()
 				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(windowInfo.leftCol), editorWindow.get_rect().s.w);
 			}
 		}
-		lineNumbers.mvaddnstr({0, lineY}, std::to_string(i + 1), lineNumbers.get_rect().s.w);
+		lineNumbers.mvaddnstr({0, lineY}, std::to_string(i + 1), lineNumbers.get_rect().s.w-1);
 		lineY += getLineVirtualHeight(buffer.getLine(i));
 	}
 	for (auto y = lineY; y < editorWindow.get_rect().s.h; y++)
