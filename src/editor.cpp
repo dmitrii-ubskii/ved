@@ -17,6 +17,11 @@ void Editor::Buffer::insert(CursorPosition p, char ch)
 	lines[p.line].insert(p.col, 1, ch);
 }
 
+void Editor::Buffer::insertLine(int line)
+{
+	lines.insert(lines.begin() + line + 1, "");
+}
+
 void Editor::Buffer::breakLine(CursorPosition p)
 {
 	std::size_t colIndex = p.col;
@@ -83,6 +88,230 @@ std::string const& Editor::Buffer::getLine(int idx) const
 
 // *** //
 
+struct OperatorResult
+{
+	bool cursorMoved{false};
+	CursorPosition cursorPosition{0, 0};
+	bool bufferChanged{false};
+	bool modeChanged{false};
+	Editor::Mode newMode{Editor::Mode::Normal};
+	// yank contents
+};
+
+using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, CursorPosition, WindowInfo const);
+
+[[nodiscard]] OperatorResult moveCursor(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+{
+	switch (key)
+	{
+		case ' ':
+		case ncurses::Key::Right:
+			if (cursor.col < static_cast<int>(buffer.getLine(cursor.line).length() - 1))
+			{
+				cursor.col++;
+			}
+			else if (cursor.line < buffer.numLines() - 1)
+			{
+				cursor.line++;
+				cursor.col = 0;
+			}
+			break;
+
+		case ncurses::Key::Backspace:
+		case ncurses::Key::Left:
+			if (cursor.col > 0)
+			{
+				cursor.col--;
+			}
+			else if (cursor.line > 0)
+			{
+				cursor.line--;
+				cursor.col = std::max(1ul, buffer.getLine(cursor.line).length()) - 1;
+			}
+			
+			break;
+
+		case '$':
+		case ncurses::Key::End:
+			cursor.col = std::max(1ul, buffer.getLine(cursor.line).length()) - 1;
+			break;
+
+		default:
+			throw;
+	}
+
+	return {.cursorMoved=true, .cursorPosition=cursor};
+}
+
+[[nodiscard]] OperatorResult scrollBuffer(
+	ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const windowInfo
+)
+{
+	switch (key)
+	{
+		case 'g':
+			cursor.line = buffer.numLines() - 1;  // FIXME go to line #COUNT
+			break;
+
+		case 'h':
+			cursor.line = windowInfo.topLine;
+			break;
+
+		case 'l':
+			// FIXME get actual lowest visible line
+			cursor.line = std::min(windowInfo.topLine + 22, buffer.numLines() - 1);
+			break;
+
+		case 'b':
+			cursor.line = 0;
+			break;
+
+		default:
+			throw;
+	}
+	int cursorLineLength = buffer.getLine(cursor.line).length();
+	if (cursor.col > cursorLineLength)
+	{
+		if (cursorLineLength == 0)
+		{
+			cursor.col = 0;
+		}
+		else
+		{
+			cursor.col = cursorLineLength - 1;
+		}
+	}
+
+	return {.cursorMoved=true, .cursorPosition=cursor};
+}
+
+
+[[nodiscard]] OperatorResult moveToStartOfLine(
+	ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const
+)
+{
+	cursor.col = 0;
+	switch (key)
+	{
+		case ncurses::Key::Enter:
+		case ncurses::Key::Down:
+			if (cursor.line < buffer.numLines() - 1)
+			{
+				cursor.line++;
+			}
+			break;
+
+		case '-':
+		case ncurses::Key::Up:
+			if (cursor.line > 0)
+			{
+				cursor.line--;
+			}
+			break;
+
+		case '0':
+		case ncurses::Key::Home:
+			/* stay on this line */
+			break;
+
+		default:
+			throw;
+	}
+
+	return {.cursorMoved=true, .cursorPosition=cursor};
+}
+
+[[nodiscard]] OperatorResult deleteChars(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+{
+	auto result = OperatorResult{.bufferChanged=true};
+	switch (key)
+	{
+		case 'x':
+			if (buffer.getLine(cursor.line).length() == 0)
+			{
+				result.bufferChanged = false;
+			}
+			else
+			{
+				buffer.erase(cursor, 1);
+				int cursorLineLength = buffer.getLine(cursor.line).length();
+				if (cursorLineLength == 0)
+				{
+					cursor.col = 0;
+					result.cursorMoved = true;
+					result.cursorPosition = cursor;
+				}
+				else if (cursor.col >= cursorLineLength)
+				{
+					cursor.col--;
+					result.cursorMoved = true;
+					result.cursorPosition = cursor;
+				}
+			}
+			break;
+
+		default:
+			throw;
+	}
+	return result;
+}
+
+[[nodiscard]] OperatorResult startInsert(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+{
+	OperatorResult result{.modeChanged=true, .newMode=Editor::Mode::Insert};
+
+	switch (key)
+	{
+		case 'i':
+			break;
+
+		case 'o':
+			buffer.insertLine(cursor.line);
+			result.bufferChanged = true;
+			cursor.col = 0;
+			cursor.line++;
+			result.cursorMoved = true;
+			break;
+
+		default:
+			throw;
+	}
+
+	result.cursorPosition = cursor;
+	return result;
+}
+
+
+auto ops = std::unordered_map<ncurses::Key, OperatorFunction>{
+	{ncurses::Key{' '}, moveCursor},
+	{ncurses::Key::Right, moveCursor},
+	{ncurses::Key::Backspace, moveCursor},
+	{ncurses::Key::Left, moveCursor},
+	{ncurses::Key{'$'}, moveCursor},
+	{ncurses::Key::End, moveCursor},
+	{ncurses::Key{'g'}, scrollBuffer},
+	{ncurses::Key{'h'}, scrollBuffer},
+	{ncurses::Key{'l'}, scrollBuffer},
+	{ncurses::Key{'b'}, scrollBuffer},
+	{ncurses::Key::Enter, moveToStartOfLine},
+	{ncurses::Key::Down, moveToStartOfLine},
+	{ncurses::Key{'-'}, moveToStartOfLine},
+	{ncurses::Key::Up, moveToStartOfLine},
+	{ncurses::Key{'0'}, moveToStartOfLine},
+	{ncurses::Key::Home, moveToStartOfLine},
+	{ncurses::Key{'x'}, deleteChars},
+	// TODO not implemented: operator-pending commands
+	// {ncurses::Key{'r'}, replaceChars},  // any character
+	// {ncurses::Key{'d'}, deleteLines},   // dd or dy (delete / cut)
+	// {ncurses::Key{'y'}, yankLines},     // yy or yd (yank / cut)
+	{ncurses::Key{'i'}, startInsert},
+	{ncurses::Key{'o'}, startInsert},
+	// TODO not implemented: Command mode
+	// {ncurses::Key{'/'}, startCommand},
+	// {ncurses::Key{':'}, startCommand},
+	// {ncurses::Key{'z'}, redraw},
+};
+
 Editor::Editor()
 	: context{}
 	, editorWindow{{{3, 0}, {0, context.get_rect().s.h - 1}}}
@@ -106,126 +335,51 @@ void Editor::open(std::filesystem::path path)
 
 void Editor::handleKey(ncurses::Key k)
 {
-	switch (k)
-	{
-		case ncurses::Key::Left:
-			cursor.col = std::max(0, cursor.col - 1);
-			break;
-
-		case ncurses::Key::Right:
-			if (buffer.is_empty())
-				break;
-			cursor.col = std::min(cursor.col+1, static_cast<int>(buffer.getLine(cursor.line).length()));
-			break;
-
-		case ncurses::Key::Up:
-			if (cursor.line > 0)
-			{
-				cursor.line--;
-			}
-			break;
-
-		case ncurses::Key::Down:
-			if (cursor.line < buffer.numLines() - 1)
-			{
-				cursor.line++;
-			}
-			break;
-
-		case ncurses::Key::Home:
-			cursor.col = 0;
-			break;
-
-		case ncurses::Key::End:
-			cursor.col = static_cast<int>(buffer.getLine(cursor.line).length());
-			break;
-
-		case ncurses::Key::PageUp:
-			topLine = std::max(0, topLine - editorWindow.get_rect().s.h);
-			if (cursor.line >= topLine + editorWindow.get_rect().s.h)
-			{
-				cursor.line = topLine + editorWindow.get_rect().s.h - 1;
-			}
-			break;
-
-		case ncurses::Key::PageDown:
-			topLine = std::min(topLine + editorWindow.get_rect().s.h, buffer.numLines() - 1);
-			if (cursor.line < topLine)
-			{
-				cursor.line = topLine;
-			}
-			break;
-	}
-
 	switch (mode)
 	{
 		case Mode::Normal:
-			switch (k)
 			{
-				case 'i':
-					mode = Mode::Insert;
-					break;
-
-				case '0':
-					cursor.col = 0;
-					break;
-
-				case '$':
-					cursor.col = static_cast<int>(buffer.getLine(cursor.line).length());
-					break;
-
-				case ' ':
-					cursor.col++;
-					if (cursor.col >= static_cast<int>(buffer.getLine(cursor.line).length()) && cursor.line < buffer.numLines() - 1)
+				if (ops.contains(k))
+				{
+					auto res = ops[k](k, buffer, cursor, windowInfo);
+					auto needToRepaint = res.bufferChanged;
+					if (res.cursorMoved)
 					{
-						cursor.line++;
-						cursor.col = 0;
+						cursor = res.cursorPosition;
+						if (windowInfo.topLine > cursor.line)
+						{
+							windowInfo.topLine = cursor.line;
+							needToRepaint = true;
+						}
+						while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
+						{
+							windowInfo.topLine++;
+							needToRepaint = true;
+						}
+						if (not wrap)
+						{
+							while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
+							{
+								windowInfo.leftCol += 20;
+								needToRepaint = true;
+							}
+							while (windowInfo.leftCol > cursor.col)
+							{
+								windowInfo.leftCol -= 20;
+								needToRepaint = true;
+							}
+						}
+						editorWindow.move(getScreenCursorPosition());
 					}
-					break;
-
-				case ncurses::Key::Backspace:
-					if (cursor.col > 0)
+					if (res.modeChanged)
 					{
-						cursor.col--;
+						mode = res.newMode;
 					}
-					else if (cursor.line > 0)
+					if (needToRepaint)
 					{
-						cursor.col = buffer.getLine(cursor.line-1).length();
-						cursor.line--;
+						repaint();
 					}
-					break;
-
-				case '-':
-					if (cursor.line > 0)
-					{
-						cursor.line--;
-						cursor.col = 0;
-					}
-					break;
-
-				case ncurses::Key::Enter:
-					if (cursor.line < buffer.numLines() - 1)
-					{
-						cursor.line++;
-						cursor.col = 0;
-					}
-					break;
-
-				case 'h':
-					cursor.line = topLine;
-					break;
-
-				case 'l':
-					cursor.line = std::min(topLine + editorWindow.get_rect().s.h - 1, buffer.numLines() - 1);
-					break;
-
-				case 'b':
-					cursor.line = 0;
-					topLine = 0;
-					break;
-
-				default:
-					break;
+				}
 			}
 			break;
 
@@ -265,38 +419,9 @@ void Editor::handleKey(ncurses::Key k)
 					}
 					break;
 			}
+			repaint();
 			break;
 	}
-
-	if (mode == Mode::Insert)
-	{
-		cursor.col = std::min(cursor.col, static_cast<int>(buffer.getLine(cursor.line).length()));
-	}
-	else if (mode == Mode::Normal)
-	{
-		cursor.col = std::min(cursor.col, std::max(0, static_cast<int>(buffer.getLine(cursor.line).length()) - 1));
-	}
-	if (topLine > cursor.line)
-	{
-		topLine = cursor.line;
-	}
-	while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
-	{
-		topLine++;
-	}
-	if (not wrap)
-	{
-		while (cursor.col - leftCol >= editorWindow.get_rect().s.w)
-		{
-			leftCol += 20;
-		}
-		while (cursor.col - leftCol < 0)
-		{
-			leftCol -= 20;
-		}
-	}
-
-	repaint();
 }
 
 void Editor::repaint()
@@ -304,7 +429,7 @@ void Editor::repaint()
 	editorWindow.erase();
 	lineNumbers.erase();
 	auto lineY = 0;
-	for (auto i = topLine; i < buffer.numLines(); i++)
+	for (auto i = windowInfo.topLine; i < buffer.numLines(); i++)
 	{
 		if (wrap)
 		{
@@ -312,9 +437,9 @@ void Editor::repaint()
 		}
 		else
 		{
-			if (buffer.getLine(i).length() > static_cast<std::size_t>(leftCol))
+			if (buffer.getLine(i).length() > static_cast<std::size_t>(windowInfo.leftCol))
 			{
-				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(leftCol), editorWindow.get_rect().s.w);
+				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(windowInfo.leftCol), editorWindow.get_rect().s.w);
 			}
 		}
 		lineNumbers.mvaddnstr({0, lineY}, std::to_string(i + 1), lineNumbers.get_rect().s.w);
@@ -361,7 +486,7 @@ std::size_t Editor::getLineVirtualHeight(std::string_view lineContents) const
 ncurses::Point Editor::getScreenCursorPosition() const
 {
 	ncurses::Point pos{0, 0};
-	for (auto i = topLine; i < cursor.line; i++)
+	for (auto i = windowInfo.topLine; i < cursor.line; i++)
 	{
 		pos.y += getLineVirtualHeight(buffer.getLine(i));
 	}
@@ -373,7 +498,7 @@ ncurses::Point Editor::getScreenCursorPosition() const
 	}
 	else
 	{
-		pos.x = cursor.col - leftCol;
+		pos.x = cursor.col - windowInfo.leftCol;
 	}
 	return pos;
 }

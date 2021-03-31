@@ -15,6 +15,12 @@ struct CursorPosition
 	int col;
 };
 
+struct WindowInfo
+{
+	int topLine;
+	int leftCol;
+};
+
 class Editor
 {
 public:
@@ -22,6 +28,32 @@ public:
 
 	int mainLoop();
 	void open(std::filesystem::path);
+
+	class Buffer
+	{
+	public:
+		void erase(CursorPosition, int count);
+		void insert(CursorPosition, char);
+		void insertLine(int line);
+		void breakLine(CursorPosition);
+		void joinLines(int line, int count);
+
+		int length() const;
+		int numLines() const;
+
+		bool is_empty() const;
+		void read(std::filesystem::path);
+
+		std::string const& getLine(int idx) const;
+
+	private:
+		std::vector<std::string> lines{""};
+	};
+
+	enum class Mode
+	{
+		Normal, Insert
+	};
 
 private:
 	void handleKey(ncurses::Key);
@@ -38,34 +70,11 @@ private:
 	std::size_t getLineLength(std::string_view lineContents) const;
 	std::size_t getLineVirtualHeight(std::string_view lineContents) const;
 
-	int topLine = 0;
-	int leftCol = 0;
+	WindowInfo windowInfo{.topLine=0, .leftCol=0};
 	bool wrap = false;
 
-	class Buffer
-	{
-	public:
-		void erase(CursorPosition, int count);
-		void insert(CursorPosition, char);
-		void breakLine(CursorPosition);
-		void joinLines(int line, int count);
-
-		int length() const;
-		int numLines() const;
-
-		bool is_empty() const;
-		void read(std::filesystem::path);
-
-		std::string const& getLine(int idx) const;
-
-	private:
-		std::vector<std::string> lines{""};
-	} buffer;
-
-	enum class Mode
-	{
-		Normal, Insert
-	} mode = Mode::Normal;
+	Buffer buffer;
+	Mode mode = Mode::Normal;
 
 	CursorPosition cursor{0, 0};
 };
