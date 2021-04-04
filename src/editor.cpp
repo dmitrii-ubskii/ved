@@ -276,10 +276,31 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			}
 			break;
 
+		case ncurses::Key::Backspace:
+			if (args.cursor.col > 0)
+			{
+				result.cursorMoved = true;
+				result.cursorPosition = {.line=args.cursor.line, .col=args.cursor.col - 1};
+				args.buffer.erase(result.cursorPosition, 1);
+			}
+			else if (args.cursor.line > 0)
+			{
+				result.cursorMoved = true;
+				result.cursorPosition = {.line=args.cursor.line - 1, .col=args.buffer.lineLength(args.cursor.line - 1)};
+				args.buffer.joinLines(result.cursorPosition.line, 2);
+			}
+			break;
+
 		default:
 			throw;
 	}
 	return result;
+}
+
+[[nodiscard]] OperatorResult breakLine(OperatorArgs args)
+{
+	args.buffer.breakLine(args.cursor);
+	return {.cursorMoved=true, .cursorPosition={.line=args.cursor.line + 1, .col=0}, .bufferChanged=true};
 }
 
 [[nodiscard]] OperatorResult startInsert(OperatorArgs args)
@@ -361,8 +382,8 @@ auto insertOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key::End, moveCursor},
 	{ncurses::Key::Home, moveToStartOfLine},
 	{ncurses::Key::Escape, startNormal},
-	// {ncurses::Key::Backspace, ...},
-	// {ncurses::Key::Enter, ...},
+	{ncurses::Key::Backspace, deleteChars},
+	{ncurses::Key::Enter, breakLine},
 };
 
 Editor::Editor()
