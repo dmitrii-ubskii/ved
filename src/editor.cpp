@@ -271,13 +271,13 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 			cursor.col = 0;
 			cursor.line++;
 			result.cursorMoved = true;
+			result.cursorPosition = cursor;
 			break;
 
 		default:
 			throw;
 	}
 
-	result.cursorPosition = cursor;
 	return result;
 }
 
