@@ -44,6 +44,7 @@ public:
 		bool is_empty() const;
 		void read(std::filesystem::path);
 
+		int lineLength(int idx) const;
 		std::string const& getLine(int idx) const;
 
 	private:

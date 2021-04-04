@@ -81,6 +81,11 @@ void Editor::Buffer::read(std::filesystem::path filePath)
 	}
 }
 
+int Editor::Buffer::lineLength(int idx) const
+{
+	return lines[idx].length();
+}
+
 std::string const& Editor::Buffer::getLine(int idx) const
 {
 	return lines[idx];
@@ -119,7 +124,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	{
 		case ' ':
 		case ncurses::Key::Right:
-			if (cursor.col < static_cast<int>(args.buffer.getLine(cursor.line).length() + lastValidOffset))
+			if (cursor.col < args.buffer.lineLength(cursor.line) + lastValidOffset)
 			{
 				cursor.col++;
 			}
@@ -139,14 +144,14 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			else if (cursor.line > 0)
 			{
 				cursor.line--;
-				cursor.col = std::max(0ul, args.buffer.getLine(cursor.line).length() + lastValidOffset);
+				cursor.col = std::max(0, args.buffer.lineLength(cursor.line) + lastValidOffset);
 			}
 			
 			break;
 
 		case '$':
 		case ncurses::Key::End:
-			cursor.col = std::max(0ul, args.buffer.getLine(cursor.line).length() + lastValidOffset);
+			cursor.col = std::max(0, args.buffer.lineLength(cursor.line) + lastValidOffset);
 			break;
 
 		default:
@@ -195,7 +200,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 		default:
 			throw;
 	}
-	int cursorLineLength = args.buffer.getLine(cursor.line).length();
+	int cursorLineLength = args.buffer.lineLength(cursor.line);
 	if (cursor.col > cursorLineLength)
 	{
 		if (cursorLineLength == 0)
@@ -250,14 +255,14 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	switch (args.key)
 	{
 		case 'x':
-			if (args.buffer.getLine(args.cursor.line).length() == 0)
+			if (args.buffer.lineLength(args.cursor.line) == 0)
 			{
 				result.bufferChanged = false;
 			}
 			else
 			{
 				args.buffer.erase(args.cursor, 1);
-				int cursorLineLength = args.buffer.getLine(args.cursor.line).length();
+				int cursorLineLength = args.buffer.lineLength(args.cursor.line);
 				if (cursorLineLength == 0)
 				{
 					result.cursorMoved = true;
@@ -287,7 +292,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			break;
 
 		case 'a':
-			if (args.buffer.getLine(args.cursor.line).length() > 0)
+			if (args.buffer.lineLength(args.cursor.line) > 0)
 			{
 				// if the line is not empty, we're guaranteed that the column after the cursor is a valid spot
 				result.cursorMoved = true;
@@ -500,7 +505,7 @@ void Editor::repaint()
 		}
 		else
 		{
-			if (buffer.getLine(i).length() > static_cast<std::size_t>(windowInfo.leftCol))
+			if (buffer.lineLength(i) > windowInfo.leftCol)
 			{
 				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(windowInfo.leftCol), editorWindow.get_rect().s.w);
 			}
