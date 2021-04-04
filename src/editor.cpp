@@ -315,6 +315,7 @@ auto ops = std::unordered_map<ncurses::Key, OperatorFunction>{
 	// {ncurses::Key{'d'}, deleteLines},   // dd or dy (delete / cut)
 	// {ncurses::Key{'y'}, yankLines},     // yy or yd (yank / cut)
 	{ncurses::Key{'i'}, startInsert},
+	{ncurses::Key{'a'}, startInsert},
 	{ncurses::Key{'o'}, startInsert},
 	// TODO not implemented: Command mode
 	// {ncurses::Key{'/'}, startCommand},
