@@ -112,11 +112,14 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 [[nodiscard]] OperatorResult moveCursor(OperatorArgs args)
 {
 	auto cursor = args.cursor;
+
+	auto lastValidOffset = args.currentMode == Editor::Mode::Insert ? 0 : -1;
+
 	switch (args.key)
 	{
 		case ' ':
 		case ncurses::Key::Right:
-			if (cursor.col < static_cast<int>(args.buffer.getLine(cursor.line).length() - 1))
+			if (cursor.col < static_cast<int>(args.buffer.getLine(cursor.line).length() + lastValidOffset))
 			{
 				cursor.col++;
 			}
@@ -136,14 +139,14 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			else if (cursor.line > 0)
 			{
 				cursor.line--;
-				cursor.col = std::max(1ul, args.buffer.getLine(cursor.line).length()) - 1;
+				cursor.col = std::max(0ul, args.buffer.getLine(cursor.line).length() + lastValidOffset);
 			}
 			
 			break;
 
 		case '$':
 		case ncurses::Key::End:
-			cursor.col = std::max(1ul, args.buffer.getLine(cursor.line).length()) - 1;
+			cursor.col = std::max(0ul, args.buffer.getLine(cursor.line).length() + lastValidOffset);
 			break;
 
 		default:
@@ -306,6 +309,13 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	return result;
 }
 
+[[nodiscard]] OperatorResult startNormal(OperatorArgs args)
+{
+	return {
+		.cursorMoved=true, .cursorPosition={args.cursor.line, std::max(args.cursor.col-1, 0)},
+		.modeChanged=true, .newMode=Editor::Mode::Normal
+	};
+}
 
 auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{' '}, moveCursor},
@@ -336,6 +346,18 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	// {ncurses::Key{'/'}, startCommand},
 	// {ncurses::Key{':'}, startCommand},
 	// {ncurses::Key{'z'}, redraw},
+};
+
+auto insertOps = std::unordered_map<ncurses::Key, OperatorFunction>{
+	{ncurses::Key::Right, moveCursor},
+	{ncurses::Key::Left, moveCursor},
+	{ncurses::Key::Down, scrollBuffer},
+	{ncurses::Key::Up, scrollBuffer},
+	{ncurses::Key::End, moveCursor},
+	{ncurses::Key::Home, moveToStartOfLine},
+	{ncurses::Key::Escape, startNormal},
+	// {ncurses::Key::Backspace, ...},
+	// {ncurses::Key::Enter, ...},
 };
 
 Editor::Editor()
@@ -399,6 +421,7 @@ void Editor::handleKey(ncurses::Key k)
 				if (res.modeChanged)
 				{
 					mode = res.newMode;
+					needToRepaint = true;
 				}
 				if (needToRepaint)
 				{
@@ -408,43 +431,58 @@ void Editor::handleKey(ncurses::Key k)
 			break;
 
 		case Mode::Insert:
-			switch (k)
+			if (insertOps.contains(k))
 			{
-				case ncurses::Key::Escape:
-					cursor.col = std::max(cursor.col-1, 0);
-					mode = Mode::Normal;
-					break;
-
-				case ncurses::Key::Backspace:
-					if (cursor.col > 0)
+				auto res = insertOps[k]({k, buffer, cursor, windowInfo, mode});
+				auto needToRepaint = res.bufferChanged;
+				if (res.cursorMoved)
+				{
+					cursor = res.cursorPosition;
+					if (windowInfo.topLine > cursor.line)
 					{
-						cursor.col--;
-						buffer.erase(cursor, 1);
+						windowInfo.topLine = cursor.line;
+						needToRepaint = true;
 					}
-					else if (cursor.line > 0)
+					while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
 					{
-						cursor.col = buffer.getLine(cursor.line-1).length();
-						cursor.line--;
-						buffer.joinLines(cursor.line, 2);
+						windowInfo.topLine++;
+						needToRepaint = true;
 					}
-					break;
-
-				case ncurses::Key::Enter:
-					buffer.breakLine(cursor);
-					cursor.col = 0;
-					cursor.line++;
-					break;
-
-				default:
-					auto ch = static_cast<int>(k);
-					if (ch < 256 && std::isprint(ch))
+					if (not wrap)
 					{
-						buffer.insert(cursor, static_cast<char>(ch));
-						cursor.col++;
+						while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
+						{
+							windowInfo.leftCol += 20;
+							needToRepaint = true;
+						}
+						while (windowInfo.leftCol > cursor.col)
+						{
+							windowInfo.leftCol -= 20;
+							needToRepaint = true;
+						}
 					}
-					break;
+					editorWindow.move(getScreenCursorPosition());
+				}
+				if (res.modeChanged)
+				{
+					mode = res.newMode;
+					needToRepaint = true;
+				}
+				if (needToRepaint)
+				{
+					repaint();
+				}
 			}
-			repaint();
+			else
+			{
+				auto ch = static_cast<int>(k);
+				if (ch < 256 && std::isprint(ch))
+				{
+					buffer.insert(cursor, static_cast<char>(ch));
+					cursor.col++;
+				}
+				repaint();
+			}
 			break;
 	}
 }
