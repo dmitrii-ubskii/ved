@@ -265,6 +265,16 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 		case 'i':
 			break;
 
+		case 'a':
+			if (buffer.getLine(cursor.line).length() > 0)
+			{
+				// if the line is not empty, we're guaranteed that the column after the cursor is a valid spot
+				cursor.col++;
+				result.cursorMoved = true;
+				result.cursorPosition = cursor;
+			}
+			break;
+
 		case 'o':
 			buffer.insertLine(cursor.line);
 			result.bufferChanged = true;
