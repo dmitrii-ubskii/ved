@@ -335,6 +335,13 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	return result;
 }
 
+[[nodiscard]] OperatorResult startCommand(OperatorArgs)
+{
+	return {
+		.modeChanged=true, .newMode=Editor::Mode::Command
+	};
+}
+
 [[nodiscard]] OperatorResult startNormal(OperatorArgs args)
 {
 	return {
@@ -370,7 +377,7 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'o'}, startInsert},
 	// TODO not implemented: Command mode
 	// {ncurses::Key{'/'}, startCommand},
-	// {ncurses::Key{':'}, startCommand},
+	{ncurses::Key{':'}, startCommand},
 	// {ncurses::Key{'z'}, redraw},
 };
 
@@ -384,6 +391,18 @@ auto insertOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key::Escape, startNormal},
 	{ncurses::Key::Backspace, deleteChars},
 	{ncurses::Key::Enter, breakLine},
+};
+
+auto commandOps = std::unordered_map<ncurses::Key, OperatorFunction>{
+	// {ncurses::Key::Right, ...},
+	// {ncurses::Key::Left, ...},
+	// {ncurses::Key::Down, ...},
+	// {ncurses::Key::Up, ...},
+	// {ncurses::Key::End, ...},
+	// {ncurses::Key::Home, ...},
+	{ncurses::Key::Escape, startNormal},
+	// {ncurses::Key::Backspace, ...},
+	// {ncurses::Key::Enter, ...},
 };
 
 Editor::Editor()
@@ -510,6 +529,41 @@ void Editor::handleKey(ncurses::Key k)
 				repaint();
 			}
 			break;
+
+		case Mode::Command:
+			if (commandOps.contains(k))
+			{
+				auto res = commandOps[k]({k, buffer, cursor, windowInfo, mode});
+				auto needToRepaint = false;
+				if (res.modeChanged)
+				{
+					mode = res.newMode;
+					needToRepaint = true;
+				}
+				if (needToRepaint)
+				{
+					repaint();
+				}
+			}
+			else if (k == ncurses::Key::Enter)
+			{
+				// TODO
+				cmdline = "";
+				cmdlineCursor = 0;
+				mode = Mode::Normal;
+				repaint();
+			}
+			else
+			{
+				auto ch = static_cast<int>(k);
+				if (ch < 256 && std::isprint(ch))
+				{
+					cmdline += ch;
+					cmdlineCursor++;
+				}
+				repaint();
+			}
+			break;
 	}
 }
 
@@ -553,11 +607,26 @@ void Editor::repaint()
 		case Mode::Insert:
 			statusLine.mvaddstr({0,0}, "-- INSERT --");
 			break;
+
+		case Mode::Command:
+			statusLine.mvaddstr({0,0}, ":" + cmdline);
+			break;
 	}
 	statusLine.refresh();
 
 	editorWindow.refresh();
-	editorWindow.move(getScreenCursorPosition());
+
+	switch(mode)
+	{
+		case Mode::Normal:
+		case Mode::Insert:
+			editorWindow.move(getScreenCursorPosition());
+			break;
+
+		case Mode::Command:
+			statusLine.move({1 + cmdlineCursor, 0});
+			break;
+	}
 }
 
 std::size_t Editor::getLineLength(std::string_view lineContents) const
@@ -598,7 +667,18 @@ int Editor::mainLoop()
 {
 	while (true)
 	{
-		auto ch = editorWindow.getch();
+		ncurses::Key ch;
+		switch(mode)
+		{
+			case Mode::Normal:
+			case Mode::Insert:
+				ch = editorWindow.getch();
+				break;
+
+			case Mode::Command:
+				ch = statusLine.getch();
+				break;
+		}
 		if (ch == ncurses::Key::Ctrl({'c'}))  // Ctrl+C
 		{
 			break;

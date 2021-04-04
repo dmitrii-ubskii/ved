@@ -53,7 +53,7 @@ public:
 
 	enum class Mode
 	{
-		Normal, Insert
+		Normal, Insert, Command
 	};
 
 private:
@@ -76,6 +76,9 @@ private:
 
 	Buffer buffer;
 	Mode mode = Mode::Normal;
+
+	std::string cmdline;
+	int cmdlineCursor{0};
 
 	CursorPosition cursor{0, 0};
 };
