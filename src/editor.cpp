@@ -88,6 +88,15 @@ std::string const& Editor::Buffer::getLine(int idx) const
 
 // *** //
 
+struct OperatorArgs
+{
+	ncurses::Key const key;
+	Editor::Buffer& buffer;
+	CursorPosition const cursor;
+	WindowInfo const windowInfo;
+	Editor::Mode const currentMode;
+};
+
 struct OperatorResult
 {
 	bool cursorMoved{false};
@@ -98,19 +107,20 @@ struct OperatorResult
 	// yank contents
 };
 
-using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, CursorPosition, WindowInfo const);
+using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 
-[[nodiscard]] OperatorResult moveCursor(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+[[nodiscard]] OperatorResult moveCursor(OperatorArgs args)
 {
-	switch (key)
+	auto cursor = args.cursor;
+	switch (args.key)
 	{
 		case ' ':
 		case ncurses::Key::Right:
-			if (cursor.col < static_cast<int>(buffer.getLine(cursor.line).length() - 1))
+			if (cursor.col < static_cast<int>(args.buffer.getLine(cursor.line).length() - 1))
 			{
 				cursor.col++;
 			}
-			else if (cursor.line < buffer.numLines() - 1)
+			else if (cursor.line < args.buffer.numLines() - 1)
 			{
 				cursor.line++;
 				cursor.col = 0;
@@ -126,14 +136,14 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 			else if (cursor.line > 0)
 			{
 				cursor.line--;
-				cursor.col = std::max(1ul, buffer.getLine(cursor.line).length()) - 1;
+				cursor.col = std::max(1ul, args.buffer.getLine(cursor.line).length()) - 1;
 			}
 			
 			break;
 
 		case '$':
 		case ncurses::Key::End:
-			cursor.col = std::max(1ul, buffer.getLine(cursor.line).length()) - 1;
+			cursor.col = std::max(1ul, args.buffer.getLine(cursor.line).length()) - 1;
 			break;
 
 		default:
@@ -143,23 +153,22 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 	return {.cursorMoved=true, .cursorPosition=cursor};
 }
 
-[[nodiscard]] OperatorResult scrollBuffer(
-	ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const windowInfo
-)
+[[nodiscard]] OperatorResult scrollBuffer(OperatorArgs args)
 {
-	switch (key)
+	auto cursor = args.cursor;
+	switch (args.key)
 	{
 		case 'g':
-			cursor.line = buffer.numLines() - 1;  // FIXME go to line #COUNT
+			cursor.line = args.buffer.numLines() - 1;  // FIXME go to line #COUNT
 			break;
 
 		case 'h':
-			cursor.line = windowInfo.topLine;
+			cursor.line = args.windowInfo.topLine;
 			break;
 
 		case 'l':
 			// FIXME get actual lowest visible line
-			cursor.line = std::min(windowInfo.topLine + 22, buffer.numLines() - 1);
+			cursor.line = std::min(args.windowInfo.topLine + 22, args.buffer.numLines() - 1);
 			break;
 
 		case 'b':
@@ -167,7 +176,7 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 			break;
 
 		case ncurses::Key::Down:
-			if (cursor.line < buffer.numLines() - 1)
+			if (cursor.line < args.buffer.numLines() - 1)
 			{
 				cursor.line++;
 			}
@@ -183,7 +192,7 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 		default:
 			throw;
 	}
-	int cursorLineLength = buffer.getLine(cursor.line).length();
+	int cursorLineLength = args.buffer.getLine(cursor.line).length();
 	if (cursor.col > cursorLineLength)
 	{
 		if (cursorLineLength == 0)
@@ -200,15 +209,14 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 }
 
 
-[[nodiscard]] OperatorResult moveToStartOfLine(
-	ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const
-)
+[[nodiscard]] OperatorResult moveToStartOfLine(OperatorArgs args)
 {
+	auto cursor = args.cursor;
 	cursor.col = 0;
-	switch (key)
+	switch (args.key)
 	{
 		case ncurses::Key::Enter:
-			if (cursor.line < buffer.numLines() - 1)
+			if (cursor.line < args.buffer.numLines() - 1)
 			{
 				cursor.line++;
 			}
@@ -233,31 +241,29 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 	return {.cursorMoved=true, .cursorPosition=cursor};
 }
 
-[[nodiscard]] OperatorResult deleteChars(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+[[nodiscard]] OperatorResult deleteChars(OperatorArgs args)
 {
 	auto result = OperatorResult{.bufferChanged=true};
-	switch (key)
+	switch (args.key)
 	{
 		case 'x':
-			if (buffer.getLine(cursor.line).length() == 0)
+			if (args.buffer.getLine(args.cursor.line).length() == 0)
 			{
 				result.bufferChanged = false;
 			}
 			else
 			{
-				buffer.erase(cursor, 1);
-				int cursorLineLength = buffer.getLine(cursor.line).length();
+				args.buffer.erase(args.cursor, 1);
+				int cursorLineLength = args.buffer.getLine(args.cursor.line).length();
 				if (cursorLineLength == 0)
 				{
-					cursor.col = 0;
 					result.cursorMoved = true;
-					result.cursorPosition = cursor;
+					result.cursorPosition = {.line=args.cursor.line, .col=0};
 				}
-				else if (cursor.col >= cursorLineLength)
+				else if (args.cursor.col >= cursorLineLength)
 				{
-					cursor.col--;
 					result.cursorMoved = true;
-					result.cursorPosition = cursor;
+					result.cursorPosition = {.line=args.cursor.line, .col=args.cursor.col - 1};
 				}
 			}
 			break;
@@ -268,32 +274,29 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 	return result;
 }
 
-[[nodiscard]] OperatorResult startInsert(ncurses::Key key, Editor::Buffer& buffer, CursorPosition cursor, WindowInfo const)
+[[nodiscard]] OperatorResult startInsert(OperatorArgs args)
 {
 	OperatorResult result{.modeChanged=true, .newMode=Editor::Mode::Insert};
 
-	switch (key)
+	switch (args.key)
 	{
 		case 'i':
 			break;
 
 		case 'a':
-			if (buffer.getLine(cursor.line).length() > 0)
+			if (args.buffer.getLine(args.cursor.line).length() > 0)
 			{
 				// if the line is not empty, we're guaranteed that the column after the cursor is a valid spot
-				cursor.col++;
 				result.cursorMoved = true;
-				result.cursorPosition = cursor;
+				result.cursorPosition = {.line=args.cursor.line, .col=args.cursor.col + 1};
 			}
 			break;
 
 		case 'o':
-			buffer.insertLine(cursor.line);
+			args.buffer.insertLine(args.cursor.line);
 			result.bufferChanged = true;
-			cursor.col = 0;
-			cursor.line++;
 			result.cursorMoved = true;
-			result.cursorPosition = cursor;
+			result.cursorPosition = {.line=args.cursor.line + 1, .col=0};
 			break;
 
 		default:
@@ -363,7 +366,7 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Normal:
 			if (normalOps.contains(k))
 			{
-				auto res = normalOps[k](k, buffer, cursor, windowInfo);
+				auto res = normalOps[k]({k, buffer, cursor, windowInfo, mode});
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
