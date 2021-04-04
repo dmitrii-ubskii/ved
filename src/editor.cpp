@@ -349,47 +349,45 @@ void Editor::handleKey(ncurses::Key k)
 	switch (mode)
 	{
 		case Mode::Normal:
+			if (ops.contains(k))
 			{
-				if (ops.contains(k))
+				auto res = ops[k](k, buffer, cursor, windowInfo);
+				auto needToRepaint = res.bufferChanged;
+				if (res.cursorMoved)
 				{
-					auto res = ops[k](k, buffer, cursor, windowInfo);
-					auto needToRepaint = res.bufferChanged;
-					if (res.cursorMoved)
+					cursor = res.cursorPosition;
+					if (windowInfo.topLine > cursor.line)
 					{
-						cursor = res.cursorPosition;
-						if (windowInfo.topLine > cursor.line)
+						windowInfo.topLine = cursor.line;
+						needToRepaint = true;
+					}
+					while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
+					{
+						windowInfo.topLine++;
+						needToRepaint = true;
+					}
+					if (not wrap)
+					{
+						while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
 						{
-							windowInfo.topLine = cursor.line;
+							windowInfo.leftCol += 20;
 							needToRepaint = true;
 						}
-						while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
+						while (windowInfo.leftCol > cursor.col)
 						{
-							windowInfo.topLine++;
+							windowInfo.leftCol -= 20;
 							needToRepaint = true;
 						}
-						if (not wrap)
-						{
-							while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
-							{
-								windowInfo.leftCol += 20;
-								needToRepaint = true;
-							}
-							while (windowInfo.leftCol > cursor.col)
-							{
-								windowInfo.leftCol -= 20;
-								needToRepaint = true;
-							}
-						}
-						editorWindow.move(getScreenCursorPosition());
 					}
-					if (res.modeChanged)
-					{
-						mode = res.newMode;
-					}
-					if (needToRepaint)
-					{
-						repaint();
-					}
+					editorWindow.move(getScreenCursorPosition());
+				}
+				if (res.modeChanged)
+				{
+					mode = res.newMode;
+				}
+				if (needToRepaint)
+				{
+					repaint();
 				}
 			}
 			break;
