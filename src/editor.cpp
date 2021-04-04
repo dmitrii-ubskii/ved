@@ -166,6 +166,20 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 			cursor.line = 0;
 			break;
 
+		case ncurses::Key::Down:
+			if (cursor.line < buffer.numLines() - 1)
+			{
+				cursor.line++;
+			}
+			break;
+
+		case ncurses::Key::Up:
+			if (cursor.line > 0)
+			{
+				cursor.line--;
+			}
+			break;
+
 		default:
 			throw;
 	}
@@ -194,7 +208,6 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 	switch (key)
 	{
 		case ncurses::Key::Enter:
-		case ncurses::Key::Down:
 			if (cursor.line < buffer.numLines() - 1)
 			{
 				cursor.line++;
@@ -202,7 +215,6 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 			break;
 
 		case '-':
-		case ncurses::Key::Up:
 			if (cursor.line > 0)
 			{
 				cursor.line--;
@@ -303,10 +315,10 @@ auto ops = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'h'}, scrollBuffer},
 	{ncurses::Key{'l'}, scrollBuffer},
 	{ncurses::Key{'b'}, scrollBuffer},
+	{ncurses::Key::Down, scrollBuffer},
+	{ncurses::Key::Up, scrollBuffer},
 	{ncurses::Key::Enter, moveToStartOfLine},
-	{ncurses::Key::Down, moveToStartOfLine},
 	{ncurses::Key{'-'}, moveToStartOfLine},
-	{ncurses::Key::Up, moveToStartOfLine},
 	{ncurses::Key{'0'}, moveToStartOfLine},
 	{ncurses::Key::Home, moveToStartOfLine},
 	{ncurses::Key{'x'}, deleteChars},
