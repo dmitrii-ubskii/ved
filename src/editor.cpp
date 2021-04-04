@@ -304,7 +304,7 @@ using OperatorFunction = OperatorResult(*)(ncurses::Key, Editor::Buffer&, Cursor
 }
 
 
-auto ops = std::unordered_map<ncurses::Key, OperatorFunction>{
+auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{' '}, moveCursor},
 	{ncurses::Key::Right, moveCursor},
 	{ncurses::Key::Backspace, moveCursor},
@@ -361,9 +361,9 @@ void Editor::handleKey(ncurses::Key k)
 	switch (mode)
 	{
 		case Mode::Normal:
-			if (ops.contains(k))
+			if (normalOps.contains(k))
 			{
-				auto res = ops[k](k, buffer, cursor, windowInfo);
+				auto res = normalOps[k](k, buffer, cursor, windowInfo);
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
