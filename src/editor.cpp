@@ -397,6 +397,7 @@ void Editor::handleKey(ncurses::Key k)
 			switch (k)
 			{
 				case ncurses::Key::Escape:
+					cursor.col = std::max(cursor.col-1, 0);
 					mode = Mode::Normal;
 					break;
 
