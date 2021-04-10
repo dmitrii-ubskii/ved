@@ -601,7 +601,6 @@ void Editor::repaint()
 	switch (mode)
 	{
 		case Mode::Normal:
-			statusLine.mvaddstr({0,0}, "-- NORMAL --");
 			break;
 
 		case Mode::Insert:
