@@ -547,11 +547,22 @@ void Editor::handleKey(ncurses::Key k)
 			}
 			else if (k == ncurses::Key::Enter)
 			{
-				// TODO
+				statusLine.erase();
+				// TODO command matching: f[ile] -> f, fi, fil, file
+				if (cmdline == "f" || cmdline == "file")
+				{
+					auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
+					statusLine.mvaddstr(
+						{},
+						"\"filename\" " + std::to_string(buffer.numLines()) + " lines " +
+							"--" + std::to_string(percentage) + "%--"
+					);
+				}
+				statusLine.refresh();
+				// TODO :e[dit], :w[rite], :r[ead]
 				cmdline = "";
 				cmdlineCursor = 0;
 				mode = Mode::Normal;
-				repaint();
 			}
 			else
 			{
