@@ -238,14 +238,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	int cursorLineLength = args.buffer.lineLength(cursor.line);
 	if (cursor.col > cursorLineLength)
 	{
-		if (cursorLineLength == 0)
-		{
-			cursor.col = 0;
-		}
-		else
-		{
-			cursor.col = cursorLineLength - 1;
-		}
+		cursor.col = std::max(0, cursorLineLength - 1);
 	}
 
 	return {.cursorMoved=true, .cursorPosition=cursor};
