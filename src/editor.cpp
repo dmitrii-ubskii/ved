@@ -451,8 +451,19 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 
 [[nodiscard]] OperatorResult putLines(OperatorArgs args)
 {
-	args.buffer.putFrom(args.reg, args.cursor.line);
-	return {.cursorMoved=true, .cursorPosition={args.cursor.line+1, 0}, .bufferChanged=true};
+	switch (args.key)
+	{
+		case 'p':
+			args.buffer.putFrom(args.reg, args.cursor.line);
+			return {.cursorMoved=true, .cursorPosition={args.cursor.line+1, 0}, .bufferChanged=true};
+
+		case 'P':
+			args.buffer.putFrom(args.reg, args.cursor.line-1);
+			return {.cursorMoved=true, .cursorPosition={args.cursor.line, 0}, .bufferChanged=true};
+
+		default:
+			throw;
+	}
 }
 
 [[nodiscard]] OperatorResult startInsert(OperatorArgs args)
@@ -534,6 +545,7 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'d'}, doPendingOperator},   // dd or dy (delete / cut)
 	{ncurses::Key{'y'}, doPendingOperator},     // yy or yd (yank / cut)
 	{ncurses::Key{'p'}, putLines},
+	{ncurses::Key{'P'}, putLines},
 	{ncurses::Key{'i'}, startInsert},
 	{ncurses::Key{'a'}, startInsert},
 	{ncurses::Key{'o'}, startInsert},
