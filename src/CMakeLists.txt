@@ -1,6 +1,7 @@
 add_executable(ved
     main.cpp
     editor.cpp
+    ops.cpp
 )
 
 target_compile_features(ved PRIVATE cxx_std_20)
