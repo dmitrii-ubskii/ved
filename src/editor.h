@@ -74,6 +74,8 @@ private:
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
 	bool wrap = false;
 
+	bool quit = false;
+
 	Buffer buffer;
 	Mode mode = Mode::Normal;
 

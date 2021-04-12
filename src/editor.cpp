@@ -566,6 +566,10 @@ void Editor::handleKey(ncurses::Key k)
 							"--" + std::to_string(percentage) + "%--"
 					);
 				}
+				else if (commandMatches(cmdline, "q", "quit"))
+				{
+					quit = true;
+				}
 				statusLine.refresh();
 				// TODO :e[dit], :w[rite], :r[ead]
 				cmdline = "";
@@ -683,7 +687,7 @@ ncurses::Point Editor::getScreenCursorPosition() const
 
 int Editor::mainLoop()
 {
-	while (true)
+	while (not quit)
 	{
 		ncurses::Key ch;
 		switch(mode)
