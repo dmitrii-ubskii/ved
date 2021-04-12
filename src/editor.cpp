@@ -638,7 +638,7 @@ void Editor::repaint()
 
 	editorWindow.refresh();
 
-	switch(mode)
+	switch (mode)
 	{
 		case Mode::Normal:
 		case Mode::Insert:

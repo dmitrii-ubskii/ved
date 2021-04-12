@@ -77,7 +77,7 @@ private:
 	bool quit = false;
 
 	Buffer buffer;
-	Mode mode = Mode::Normal;
+	Mode mode{Mode::Normal};
 
 	std::string cmdline;
 	int cmdlineCursor{0};
