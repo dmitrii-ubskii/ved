@@ -89,6 +89,7 @@ private:
 	Register reg;
 	Mode mode{Mode::Normal};
 	ncurses::Key pendingOperator{ncurses::Key::Null};
+	std::optional<int> operatorCount;
 
 	std::string cmdline;
 	int cmdlineCursor{0};

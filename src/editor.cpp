@@ -54,6 +54,7 @@ void Editor::Buffer::joinLines(int line, int count)
 void Editor::Buffer::yankTo(Register& r, int line, int count) const
 {
 	r.lines.clear();
+	count = std::min(count, numLines() - line);
 	r.lines.insert(r.lines.end(), lines.begin() + line, lines.begin() + line + count);
 }
 
@@ -68,6 +69,7 @@ void Editor::Buffer::deleteLines(int line, int count)
 	{
 		return;
 	}
+	count = std::min(count, numLines() - line);
 	lines.erase(lines.cbegin() + line, lines.cbegin() + line + count);
 	if (lines.empty())
 	{
@@ -129,6 +131,7 @@ struct OperatorArgs
 	Editor::Mode const currentMode;
 
 	ncurses::Key pendingOperator{ncurses::Key::Null};
+	std::optional<int> const count{};
 };
 
 struct OperatorResult
@@ -144,7 +147,7 @@ struct OperatorResult
 	std::string message{""};
 
 	ncurses::Key pendingOperator{ncurses::Key::Null};
-	// yank contents
+	std::optional<int> count{std::nullopt};
 };
 
 using OperatorFunction = OperatorResult(*)(OperatorArgs args);
@@ -153,40 +156,69 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 {
 	auto cursor = args.cursor;
 
-	auto lastValidOffset = args.currentMode == Editor::Mode::Insert ? 0 : -1;
+	auto lastValidOffset = [&](int index)
+	{
+		auto lineLength = args.buffer.lineLength(index);
+		if (lineLength == 0)
+			return 0;
+		return lineLength + (args.currentMode == Editor::Mode::Insert ? 0 : -1);
+	};
+
+	auto toMove = args.count.value_or(1);
 
 	switch (args.key)
 	{
 		case ' ':
 		case ncurses::Key::Right:
-			if (cursor.col < args.buffer.lineLength(cursor.line) + lastValidOffset)
+			while (toMove)
 			{
-				cursor.col++;
-			}
-			else if (cursor.line < args.buffer.numLines() - 1)
-			{
-				cursor.line++;
-				cursor.col = 0;
+				auto lastValidPosOnLine = lastValidOffset(cursor.line);
+				if (cursor.col + toMove <= lastValidPosOnLine)
+				{
+					cursor.col += toMove;
+					break;
+				}
+				else if (cursor.line < args.buffer.numLines() - 1)
+				{
+					toMove -= lastValidPosOnLine - cursor.col + 1;
+					cursor.col = 0;
+					cursor.line++;
+				}
+				else
+				{
+					cursor.col = lastValidPosOnLine;
+					break;
+				}
 			}
 			break;
 
 		case ncurses::Key::Backspace:
 		case ncurses::Key::Left:
-			if (cursor.col > 0)
+			while (toMove)
 			{
-				cursor.col--;
-			}
-			else if (cursor.line > 0)
-			{
-				cursor.line--;
-				cursor.col = std::max(0, args.buffer.lineLength(cursor.line) + lastValidOffset);
+				if (cursor.col >= toMove)
+				{
+					cursor.col -= toMove;
+					break;
+				}
+				else if (cursor.line > 0)
+				{
+					toMove -= cursor.col + 1;
+					cursor.line--;
+					cursor.col = std::max(0, lastValidOffset(cursor.line));
+				}
+				else
+				{
+					cursor.col = 0;
+					break;
+				}
 			}
 			
 			break;
 
 		case '$':
 		case ncurses::Key::End:
-			cursor.col = std::max(0, args.buffer.lineLength(cursor.line) + lastValidOffset);
+			cursor.col = std::max(0, lastValidOffset(cursor.line));
 			break;
 
 		default:
@@ -202,7 +234,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	switch (args.key)
 	{
 		case 'g':
-			cursor.line = args.buffer.numLines() - 1;  // FIXME go to line #COUNT
+			cursor.line = std::min(args.count.value_or(args.buffer.numLines()) - 1, args.buffer.numLines() - 1);
 			break;
 
 		case 'h':
@@ -219,17 +251,11 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			break;
 
 		case ncurses::Key::Down:
-			if (cursor.line < args.buffer.numLines() - 1)
-			{
-				cursor.line++;
-			}
+			cursor.line = std::min(cursor.line + args.count.value_or(1), args.buffer.numLines() - 1);
 			break;
 
 		case ncurses::Key::Up:
-			if (cursor.line > 0)
-			{
-				cursor.line--;
-			}
+			cursor.line = std::max(cursor.line - args.count.value_or(1), 0);
 			break;
 
 		default:
@@ -252,17 +278,11 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	switch (args.key)
 	{
 		case ncurses::Key::Enter:
-			if (cursor.line < args.buffer.numLines() - 1)
-			{
-				cursor.line++;
-			}
+			cursor.line = std::min(cursor.line + args.count.value_or(1), args.buffer.numLines() - 1);
 			break;
 
 		case '-':
-			if (cursor.line > 0)
-			{
-				cursor.line--;
-			}
+			cursor.line = std::max(cursor.line - args.count.value_or(1), 0);
 			break;
 
 		case '0':
@@ -277,6 +297,29 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	return {.cursorMoved=true, .cursorPosition=cursor};
 }
 
+[[nodiscard]] OperatorResult handleDigit(OperatorArgs args)
+{
+	switch (args.key)
+	{
+		case '0':
+			if (not args.count.has_value())
+			{
+				return moveToStartOfLine(args);
+			}
+			[[fallthrough]];
+
+		case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+			return {
+				.pendingOperator=args.pendingOperator,
+				.count=args.count.value_or(0) * 10 + args.key.keycode - '0'
+			};
+			break;
+
+		default:
+			throw;
+	}
+}
+
 [[nodiscard]] OperatorResult deleteChars(OperatorArgs args)
 {
 	auto result = OperatorResult{.bufferChanged=true};
@@ -289,7 +332,7 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 			}
 			else
 			{
-				args.buffer.erase(args.cursor, 1);
+				args.buffer.erase(args.cursor, args.count.value_or(1));
 				int cursorLineLength = args.buffer.lineLength(args.cursor.line);
 				if (cursorLineLength == 0)
 				{
@@ -335,20 +378,21 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 {
 	OperatorResult result{.bufferChanged=true};
 
+	auto count = args.count.value_or(1);
 	switch (args.key)
 	{
 		case 'd':  // dd
 			break;
 
 		case 'y':  // dy
-			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			args.buffer.yankTo(args.reg, args.cursor.line, count);
 			break;
 
 		default:
 			throw;
 	}
-	args.buffer.deleteLines(args.cursor.line, 1);
-	result.message = "1 fewer lines";
+	args.buffer.deleteLines(args.cursor.line, count);
+	result.message = std::to_string(count) + " fewer lines";
 
 	result.cursorPosition = args.cursor;
 	if (result.cursorPosition.line >= args.buffer.numLines())
@@ -367,28 +411,29 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 
 [[nodiscard]] OperatorResult yankLines(OperatorArgs args)
 {
+	auto count = args.count.value_or(1);
 	switch (args.key)
 	{
 		case 'd':  // yd
-			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			args.buffer.yankTo(args.reg, args.cursor.line, count);
 			// NOTE deleteLines() assumes pendingOperator == 'd', so it's equivalent to 'dd'
 			return deleteLines(args);
 
 		case 'y':  // yy
-			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			args.buffer.yankTo(args.reg, args.cursor.line, count);
 			break;
 
 		default:
 			throw;
 	}
-	return {.message="1 line yanked"};
+	return {.message=std::to_string(count) + " lines yanked"};
 }
 
 [[nodiscard]] OperatorResult doPendingOperator(OperatorArgs args)
 {
 	if (args.pendingOperator == ncurses::Key::Null)
 	{
-		return {.pendingOperator=args.key};
+		return {.pendingOperator=args.key, .count=args.count};
 	}
 
 	switch (args.pendingOperator)
@@ -458,6 +503,16 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 }
 
 auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
+	{ncurses::Key{'0'}, handleDigit},
+	{ncurses::Key{'1'}, handleDigit},
+	{ncurses::Key{'2'}, handleDigit},
+	{ncurses::Key{'3'}, handleDigit},
+	{ncurses::Key{'4'}, handleDigit},
+	{ncurses::Key{'5'}, handleDigit},
+	{ncurses::Key{'6'}, handleDigit},
+	{ncurses::Key{'7'}, handleDigit},
+	{ncurses::Key{'8'}, handleDigit},
+	{ncurses::Key{'9'}, handleDigit},
 	{ncurses::Key{' '}, moveCursor},
 	{ncurses::Key::Right, moveCursor},
 	{ncurses::Key::Backspace, moveCursor},
@@ -472,7 +527,6 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key::Up, scrollBuffer},
 	{ncurses::Key::Enter, moveToStartOfLine},
 	{ncurses::Key{'-'}, moveToStartOfLine},
-	{ncurses::Key{'0'}, moveToStartOfLine},
 	{ncurses::Key::Home, moveToStartOfLine},
 	{ncurses::Key{'x'}, deleteChars},
 	// TODO not implemented: operator-pending commands
@@ -550,8 +604,24 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Normal:
 			if (normalOps.contains(k))
 			{
-				auto res = normalOps[k]({k, buffer, reg, cursor, windowInfo, mode, pendingOperator});
+				auto res = normalOps[k]({
+					.key=k, .buffer=buffer, .reg=reg,
+					.cursor=cursor, .windowInfo=windowInfo, .currentMode=mode,
+					.pendingOperator=pendingOperator,
+					.count=operatorCount
+				});
+
 				pendingOperator = res.pendingOperator;
+
+			if (operatorCount.has_value() && not res.count.has_value())  // clear count indication
+				{
+					statusLine.erase();
+					statusLine.refresh();
+					editorWindow.refresh();  // return cursor to editor
+				}
+
+				operatorCount = res.count;
+
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -590,9 +660,18 @@ void Editor::handleKey(ncurses::Key k)
 				{
 					repaint();
 				}
+
 				if (res.message != "")
 				{
+					statusLine.erase();
 					statusLine.mvaddstr({}, res.message);
+					statusLine.refresh();
+					editorWindow.refresh();  // return cursor to editor
+				}
+				else if (operatorCount.has_value())
+				{
+					statusLine.erase();
+					statusLine.mvaddstr({statusLine.get_rect().s.w - 10, 0}, std::to_string(*operatorCount));
 					statusLine.refresh();
 					editorWindow.refresh();  // return cursor to editor
 				}
