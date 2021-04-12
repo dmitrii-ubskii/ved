@@ -571,6 +571,7 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	// TODO not implemented: Command mode
 	// {ncurses::Key{'/'}, startCommand},
 	{ncurses::Key{':'}, startCommand},
+	{ncurses::Key{';'}, startCommand},
 	{ncurses::Key{'z'}, redraw},
 };
 
