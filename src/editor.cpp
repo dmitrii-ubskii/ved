@@ -51,6 +51,30 @@ void Editor::Buffer::joinLines(int line, int count)
 	lines.erase(lines.cbegin() + line + 1, lines.cbegin() + line + count);
 }
 
+void Editor::Buffer::yankTo(Register& r, int line, int count) const
+{
+	r.lines.clear();
+	r.lines.insert(r.lines.end(), lines.begin() + line, lines.begin() + line + count);
+}
+
+void Editor::Buffer::putFrom(Register const& r, int line)
+{
+	lines.insert(lines.begin() + line + 1, r.lines.cbegin(), r.lines.cend());
+}
+
+void Editor::Buffer::deleteLines(int line, int count)
+{
+	if (count < 1)  // nothing to be done
+	{
+		return;
+	}
+	lines.erase(lines.cbegin() + line, lines.cbegin() + line + count);
+	if (lines.empty())
+	{
+		lines.emplace_back("");
+	}
+}
+
 int Editor::Buffer::length() const
 {
 	return std::accumulate(
@@ -96,19 +120,30 @@ std::string const& Editor::Buffer::getLine(int idx) const
 struct OperatorArgs
 {
 	ncurses::Key const key;
+
 	Editor::Buffer& buffer;
+	Editor::Register& reg;
+
 	CursorPosition const cursor;
 	WindowInfo const windowInfo;
 	Editor::Mode const currentMode;
+
+	ncurses::Key pendingOperator{ncurses::Key::Null};
 };
 
 struct OperatorResult
 {
 	bool cursorMoved{false};
 	CursorPosition cursorPosition{0, 0};
+
 	bool bufferChanged{false};
+
 	bool modeChanged{false};
 	Editor::Mode newMode{Editor::Mode::Normal};
+
+	std::string message{""};
+
+	ncurses::Key pendingOperator{ncurses::Key::Null};
 	// yank contents
 };
 
@@ -303,6 +338,85 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	return {.cursorMoved=true, .cursorPosition={.line=args.cursor.line + 1, .col=0}, .bufferChanged=true};
 }
 
+[[nodiscard]] OperatorResult deleteLines(OperatorArgs args)
+{
+	OperatorResult result{.bufferChanged=true};
+
+	switch (args.key)
+	{
+		case 'd':  // dd
+			break;
+
+		case 'y':  // dy
+			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			break;
+
+		default:
+			throw;
+	}
+	args.buffer.deleteLines(args.cursor.line, 1);
+	result.message = "1 fewer lines";
+
+	result.cursorPosition = args.cursor;
+	if (result.cursorPosition.line >= args.buffer.numLines())
+	{
+		result.cursorMoved = true;
+		result.cursorPosition.line = args.buffer.numLines() - 1;
+	}
+	if (result.cursorPosition.col >= args.buffer.lineLength(result.cursorPosition.line))
+	{
+		result.cursorMoved = true;
+		result.cursorPosition.col = std::max(0, args.buffer.lineLength(result.cursorPosition.line) - 1);
+	}
+
+	return result;
+}
+
+[[nodiscard]] OperatorResult yankLines(OperatorArgs args)
+{
+	switch (args.key)
+	{
+		case 'd':  // yd
+			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			// NOTE deleteLines() assumes pendingOperator == 'd', so it's equivalent to 'dd'
+			return deleteLines(args);
+
+		case 'y':  // yy
+			args.buffer.yankTo(args.reg, args.cursor.line, 1);
+			break;
+
+		default:
+			throw;
+	}
+	return {.message="1 line yanked"};
+}
+
+[[nodiscard]] OperatorResult doPendingOperator(OperatorArgs args)
+{
+	if (args.pendingOperator == ncurses::Key::Null)
+	{
+		return {.pendingOperator=args.key};
+	}
+
+	switch (args.pendingOperator)
+	{
+		case 'd':
+			return deleteLines(args);
+
+		case 'y':
+			return yankLines(args);
+
+		default:
+			throw;
+	}
+}
+
+[[nodiscard]] OperatorResult putLines(OperatorArgs args)
+{
+	args.buffer.putFrom(args.reg, args.cursor.line);
+	return {.cursorMoved=true, .cursorPosition={args.cursor.line+1, 0}, .bufferChanged=true};
+}
+
 [[nodiscard]] OperatorResult startInsert(OperatorArgs args)
 {
 	OperatorResult result{.modeChanged=true, .newMode=Editor::Mode::Insert};
@@ -370,8 +484,9 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'x'}, deleteChars},
 	// TODO not implemented: operator-pending commands
 	// {ncurses::Key{'r'}, replaceChars},  // any character
-	// {ncurses::Key{'d'}, deleteLines},   // dd or dy (delete / cut)
-	// {ncurses::Key{'y'}, yankLines},     // yy or yd (yank / cut)
+	{ncurses::Key{'d'}, doPendingOperator},   // dd or dy (delete / cut)
+	{ncurses::Key{'y'}, doPendingOperator},     // yy or yd (yank / cut)
+	{ncurses::Key{'p'}, putLines},
 	{ncurses::Key{'i'}, startInsert},
 	{ncurses::Key{'a'}, startInsert},
 	{ncurses::Key{'o'}, startInsert},
@@ -442,7 +557,8 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Normal:
 			if (normalOps.contains(k))
 			{
-				auto res = normalOps[k]({k, buffer, cursor, windowInfo, mode});
+				auto res = normalOps[k]({k, buffer, reg, cursor, windowInfo, mode, pendingOperator});
+				pendingOperator = res.pendingOperator;
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -481,13 +597,19 @@ void Editor::handleKey(ncurses::Key k)
 				{
 					repaint();
 				}
+				if (res.message != "")
+				{
+					statusLine.mvaddstr({}, res.message);
+					statusLine.refresh();
+					editorWindow.refresh();  // return cursor to editor
+				}
 			}
 			break;
 
 		case Mode::Insert:
 			if (insertOps.contains(k))
 			{
-				auto res = insertOps[k]({k, buffer, cursor, windowInfo, mode});
+				auto res = insertOps[k]({k, buffer, reg, cursor, windowInfo, mode});
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -542,7 +664,7 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Command:
 			if (commandOps.contains(k))
 			{
-				auto res = commandOps[k]({k, buffer, cursor, windowInfo, mode});
+				auto res = commandOps[k]({k, buffer, reg, cursor, windowInfo, mode});
 				auto needToRepaint = false;
 				if (res.modeChanged)
 				{

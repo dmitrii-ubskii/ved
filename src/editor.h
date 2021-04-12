@@ -29,6 +29,11 @@ public:
 	int mainLoop();
 	void open(std::filesystem::path);
 
+	struct Register
+	{
+		std::vector<std::string> lines{};
+	};
+
 	class Buffer
 	{
 	public:
@@ -37,6 +42,10 @@ public:
 		void insertLine(int line);
 		void breakLine(CursorPosition);
 		void joinLines(int line, int count);
+		void deleteLines(int line, int count);
+
+		void yankTo(Register&, int line, int count) const;
+		void putFrom(Register const&, int line);
 
 		int length() const;
 		int numLines() const;
@@ -77,7 +86,9 @@ private:
 	bool quit = false;
 
 	Buffer buffer;
+	Register reg;
 	Mode mode{Mode::Normal};
+	ncurses::Key pendingOperator{ncurses::Key::Null};
 
 	std::string cmdline;
 	int cmdlineCursor{0};
