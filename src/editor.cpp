@@ -481,6 +481,11 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	return {.bufferChanged=true};
 }
 
+[[nodiscard]] OperatorResult redraw(OperatorArgs)
+{
+	return {.bufferChanged=true};  // LIES!
+}
+
 [[nodiscard]] OperatorResult startInsert(OperatorArgs args)
 {
 	OperatorResult result{.modeChanged=true, .newMode=Editor::Mode::Insert};
@@ -566,7 +571,7 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	// TODO not implemented: Command mode
 	// {ncurses::Key{'/'}, startCommand},
 	{ncurses::Key{':'}, startCommand},
-	// {ncurses::Key{'z'}, redraw},
+	{ncurses::Key{'z'}, redraw},
 };
 
 auto insertOps = std::unordered_map<ncurses::Key, OperatorFunction>{
