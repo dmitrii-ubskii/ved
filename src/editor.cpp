@@ -426,6 +426,15 @@ void Editor::open(std::filesystem::path path)
 	repaint();
 }
 
+bool commandMatches(
+	std::string_view const command,
+	std::string_view const requiredPrefix,
+	std::string_view const fullCommand
+)
+{
+	return command.starts_with(requiredPrefix) && fullCommand.starts_with(command);
+}
+
 void Editor::handleKey(ncurses::Key k)
 {
 	switch (mode)
@@ -548,8 +557,7 @@ void Editor::handleKey(ncurses::Key k)
 			else if (k == ncurses::Key::Enter)
 			{
 				statusLine.erase();
-				// TODO command matching: f[ile] -> f, fi, fil, file
-				if (cmdline == "f" || cmdline == "file")
+				if (commandMatches(cmdline, "f", "file"))
 				{
 					auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
 					statusLine.mvaddstr(
