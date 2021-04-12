@@ -12,9 +12,9 @@ void Editor::Buffer::erase(CursorPosition p, int count)
 	lines[p.line].erase(p.col, count);
 }
 
-void Editor::Buffer::insert(CursorPosition p, char ch)
+void Editor::Buffer::insert(CursorPosition p, char ch, int count)
 {
-	lines[p.line].insert(p.col, 1, ch);
+	lines[p.line].insert(p.col, count, ch);
 }
 
 void Editor::Buffer::insertLine(int line)
@@ -122,6 +122,8 @@ std::string const& Editor::Buffer::getLine(int idx) const
 struct OperatorArgs
 {
 	ncurses::Key const key;
+
+	ncurses::Ncurses& context;
 
 	Editor::Buffer& buffer;
 	Editor::Register& reg;
@@ -466,6 +468,19 @@ using OperatorFunction = OperatorResult(*)(OperatorArgs args);
 	}
 }
 
+[[nodiscard]] OperatorResult replaceChars(OperatorArgs args)
+{
+	if (args.key != 'r')
+	{
+		throw;
+	}
+	auto c = args.context.getch();
+	auto count = std::min(args.count.value_or(1), args.buffer.lineLength(args.cursor.line) - args.cursor.col);
+	args.buffer.erase(args.cursor, count);
+	args.buffer.insert(args.cursor, c, count);
+	return {.bufferChanged=true};
+}
+
 [[nodiscard]] OperatorResult startInsert(OperatorArgs args)
 {
 	OperatorResult result{.modeChanged=true, .newMode=Editor::Mode::Insert};
@@ -540,8 +555,7 @@ auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'-'}, moveToStartOfLine},
 	{ncurses::Key::Home, moveToStartOfLine},
 	{ncurses::Key{'x'}, deleteChars},
-	// TODO not implemented: operator-pending commands
-	// {ncurses::Key{'r'}, replaceChars},  // any character
+	{ncurses::Key{'r'}, replaceChars},  // any character
 	{ncurses::Key{'d'}, doPendingOperator},   // dd or dy (delete / cut)
 	{ncurses::Key{'y'}, doPendingOperator},     // yy or yd (yank / cut)
 	{ncurses::Key{'p'}, putLines},
@@ -617,7 +631,7 @@ void Editor::handleKey(ncurses::Key k)
 			if (normalOps.contains(k))
 			{
 				auto res = normalOps[k]({
-					.key=k, .buffer=buffer, .reg=reg,
+					.key=k, .context=context, .buffer=buffer, .reg=reg,
 					.cursor=cursor, .windowInfo=windowInfo, .currentMode=mode,
 					.pendingOperator=pendingOperator,
 					.count=operatorCount
@@ -693,7 +707,7 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Insert:
 			if (insertOps.contains(k))
 			{
-				auto res = insertOps[k]({k, buffer, reg, cursor, windowInfo, mode});
+				auto res = insertOps[k]({k, context, buffer, reg, cursor, windowInfo, mode});
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -738,7 +752,7 @@ void Editor::handleKey(ncurses::Key k)
 				auto ch = static_cast<int>(k);
 				if (ch < 256 && std::isprint(ch))
 				{
-					buffer.insert(cursor, static_cast<char>(ch));
+					buffer.insert(cursor, static_cast<char>(ch), 1);
 					cursor.col++;
 				}
 				repaint();
@@ -748,7 +762,7 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Command:
 			if (commandOps.contains(k))
 			{
-				auto res = commandOps[k]({k, buffer, reg, cursor, windowInfo, mode});
+				auto res = commandOps[k]({k, context, buffer, reg, cursor, windowInfo, mode});
 				auto needToRepaint = false;
 				if (res.modeChanged)
 				{

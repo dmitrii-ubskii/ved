@@ -38,7 +38,7 @@ public:
 	{
 	public:
 		void erase(CursorPosition, int count);
-		void insert(CursorPosition, char);
+		void insert(CursorPosition, char, int count);
 		void insertLine(int line);
 		void breakLine(CursorPosition);
 		void joinLines(int line, int count);
