@@ -81,9 +81,9 @@ private:
 	std::size_t getLineVirtualHeight(std::string_view lineContents) const;
 
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
-	bool wrap = false;
+	bool wrap{false};
 
-	bool quit = false;
+	bool quit{false};
 
 	Buffer buffer;
 	Register reg;
