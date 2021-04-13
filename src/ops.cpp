@@ -409,6 +409,41 @@ CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs args)
 
 CommandOperatorResult parseCmdline(CommandOperatorArgs args)
 {
-	return {.modeChanged=true, .newMode=Editor::Mode::Normal, .parsedCommand={args.cmdline}};
+	auto result = CommandOperatorResult{.modeChanged=true, .newMode=Editor::Mode::Normal};
+
+	if (args.cmdline == "")
+	{
+		return result;
+	}
+
+	auto firstSpace = args.cmdline.find(" ");
+	auto command = args.cmdline.substr(0, firstSpace);
+	if (command.ends_with("!"))
+	{
+		result.parsedCommand.push_back(command.substr(0, command.length() - 1));
+		result.parsedCommand.push_back("!");
+	}
+	else
+	{
+		result.parsedCommand.push_back(command);
+	}
+
+	if (firstSpace != std::string::npos)
+	{
+		auto tailStart = args.cmdline.find_first_not_of(" ", firstSpace);
+		if (tailStart != std::string::npos)
+		{
+			auto tail = args.cmdline.substr(tailStart, args.cmdline.find_last_not_of(" "));
+			if (tail.find_first_of(" ") != std::string::npos)
+			{
+				result.message = "ERR: Trailing characters";
+				result.parsedCommand = {};
+				return result;
+			}
+			result.parsedCommand.push_back(tail);
+		}
+	}
+
+	return result;
 }
 

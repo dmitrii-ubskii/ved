@@ -51,6 +51,7 @@ public:
 		int numLines() const;
 
 		bool is_empty() const;
+		void clear();
 		void read(std::filesystem::path);
 
 		int lineLength(int idx) const;

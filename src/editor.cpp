@@ -99,9 +99,13 @@ bool Editor::Buffer::is_empty() const
 	return numLines() == 0;
 }
 
-void Editor::Buffer::read(std::filesystem::path filePath)
+void Editor::Buffer::clear()
 {
 	lines.clear();
+}
+
+void Editor::Buffer::read(std::filesystem::path filePath)
+{
 	auto fileHandler = std::ifstream(filePath);
 	auto lineBuffer = std::string{};
 	while (not fileHandler.eof())
@@ -155,7 +159,16 @@ void Editor::open(std::filesystem::path path)
 	}
 
 	file = resolved_path;
+
+	buffer.clear();
 	buffer.read(file);
+
+	cursor.line = std::min(cursor.line, buffer.numLines()-1);
+	windowInfo.topLine = std::min(windowInfo.topLine, buffer.numLines()-1);
+
+	auto cursorLineLength = buffer.lineLength(cursor.line);
+	cursor.col = std::min(cursor.col, std::max(0, cursorLineLength - 1));
+	
 	repaint();
 }
 
@@ -338,8 +351,24 @@ void Editor::handleKey(ncurses::Key k)
 					{
 						quit = true;
 					}
-					statusLine.refresh();
+					else if (commandMatches(command, "e", "edit"))
+					{
+						auto numTokens = res.parsedCommand.size();
+						if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
+						{
+							open(res.parsedCommand[numTokens-1]);
+						}
+						else
+						{
+							open(file);
+						}
+					}
 					// TODO :e[dit], :w[rite], :r[ead]
+				}
+
+				if (res.message != "")
+				{
+					displayMessage(res.message);
 				}
 			}
 			else

@@ -131,6 +131,8 @@ struct CommandOperatorResult
 	bool modeChanged{false};
 	Editor::Mode newMode{Editor::Mode::Normal};
 	std::vector<std::string> parsedCommand{};
+
+	std::string message{""};
 };
 
 using CommandOperatorFunction = CommandOperatorResult(*)(CommandOperatorArgs args);
