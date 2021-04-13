@@ -166,11 +166,9 @@ void Editor::handleKey(ncurses::Key k)
 
 				pendingOperator = res.pendingOperator;
 
-			if (operatorCount.has_value() && not res.count.has_value())  // clear count indication
+				if (operatorCount.has_value() && not res.count.has_value())  // clear count indication
 				{
-					statusLine.erase();
-					statusLine.refresh();
-					editorWindow.refresh();  // return cursor to editor
+					displayMessage("");
 				}
 
 				operatorCount = res.count;
@@ -216,10 +214,7 @@ void Editor::handleKey(ncurses::Key k)
 
 				if (res.message != "")
 				{
-					statusLine.erase();
-					statusLine.mvaddstr({}, res.message);
-					statusLine.refresh();
-					editorWindow.refresh();  // return cursor to editor
+					displayMessage(res.message);
 				}
 				else if (operatorCount.has_value())
 				{
@@ -396,6 +391,14 @@ void Editor::repaint()
 			statusLine.move({1 + cmdlineCursor, 0});
 			break;
 	}
+}
+
+void Editor::displayMessage(std::string_view message)
+{
+	statusLine.clear();
+	statusLine.mvaddstr({}, message);
+	statusLine.refresh();
+	editorWindow.refresh();
 }
 
 std::size_t Editor::getLineLength(std::string_view lineContents) const

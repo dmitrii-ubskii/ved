@@ -71,6 +71,8 @@ private:
 	void handleKey(ncurses::Key);
 	void repaint();
 
+	void displayMessage(std::string_view message);
+
 	ncurses::Ncurses context;
 
 	ncurses::Window editorWindow;
