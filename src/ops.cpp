@@ -2,6 +2,11 @@
 
 [[nodiscard]] OperatorResult moveCursor(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	auto cursor = args.cursor;
 
 	auto lastValidOffset = [&](int index)
@@ -78,6 +83,11 @@
 
 [[nodiscard]] OperatorResult scrollBuffer(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	auto cursor = args.cursor;
 	switch (args.key)
 	{
@@ -121,6 +131,11 @@
 
 [[nodiscard]] OperatorResult moveToStartOfLine(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	auto cursor = args.cursor;
 	cursor.col = 0;
 	switch (args.key)
@@ -170,6 +185,11 @@
 
 [[nodiscard]] OperatorResult deleteChars(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	auto result = OperatorResult{.bufferChanged=true};
 	switch (args.key)
 	{
@@ -224,6 +244,11 @@
 
 [[nodiscard]] OperatorResult deleteLines(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	OperatorResult result{.bufferChanged=true};
 
 	auto count = args.count.value_or(1);
@@ -246,7 +271,7 @@
 	if (result.cursorPosition.line >= args.buffer.numLines())
 	{
 		result.cursorMoved = true;
-		result.cursorPosition.line = args.buffer.numLines() - 1;
+		result.cursorPosition.line = std::max(0, args.buffer.numLines() - 1);
 	}
 	if (result.cursorPosition.col >= args.buffer.lineLength(result.cursorPosition.line))
 	{
@@ -259,6 +284,11 @@
 
 [[nodiscard]] OperatorResult yankLines(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	auto count = args.count.value_or(1);
 	switch (args.key)
 	{
@@ -299,6 +329,11 @@
 
 [[nodiscard]] OperatorResult putLines(OperatorArgs args)
 {
+	if (args.reg.lines.empty())
+	{
+		return {};
+	}
+
 	switch (args.key)
 	{
 		case 'p':
@@ -316,6 +351,11 @@
 
 [[nodiscard]] OperatorResult replaceChars(OperatorArgs args)
 {
+	if (args.buffer.isEmpty())
+	{
+		return {};
+	}
+
 	if (args.key != 'r')
 	{
 		throw;
@@ -342,6 +382,11 @@
 			break;
 
 		case 'a':
+			if (args.buffer.isEmpty())
+			{
+				return result;
+			}
+
 			if (args.buffer.lineLength(args.cursor.line) > 0)
 			{
 				// if the line is not empty, we're guaranteed that the column after the cursor is a valid spot

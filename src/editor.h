@@ -47,7 +47,6 @@ public:
 		void yankTo(Register&, int line, int count) const;
 		void putFrom(Register const&, int line);
 
-		int length() const;
 		int numLines() const;
 
 		bool isEmpty() const;
@@ -58,7 +57,7 @@ public:
 		std::string const& getLine(int idx) const;
 
 	private:
-		std::vector<std::string> lines{""};
+		std::vector<std::string> lines{};
 	};
 
 	enum class Mode

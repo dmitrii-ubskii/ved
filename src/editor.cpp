@@ -18,16 +18,52 @@ void Editor::Buffer::erase(CursorPosition p, int count)
 
 void Editor::Buffer::insert(CursorPosition p, char ch, int count)
 {
+	if (isEmpty())
+	{
+		if (p.line == 0 && p.col == 0)
+		{
+			lines.push_back("");
+		}
+		else
+		{
+			throw;
+		}
+	}
+
 	lines[p.line].insert(p.col, count, ch);
 }
 
 void Editor::Buffer::insertLine(int line)
 {
+	if (isEmpty())
+	{
+		if (line == 0)
+		{
+			lines.push_back("");
+		}
+		else
+		{
+			throw;
+		}
+	}
+
 	lines.insert(lines.begin() + line + 1, "");
 }
 
 void Editor::Buffer::breakLine(CursorPosition p)
 {
+	if (isEmpty())
+	{
+		if (p.line == 0 && p.col == 0)
+		{
+			lines.push_back("");
+		}
+		else
+		{
+			throw;
+		}
+	}
+
 	std::size_t colIndex = p.col;
 	if (lines[p.line].length() == colIndex)
 	{
@@ -64,6 +100,17 @@ void Editor::Buffer::yankTo(Register& r, int line, int count) const
 
 void Editor::Buffer::putFrom(Register const& r, int line)
 {
+	if (isEmpty())
+	{
+		if (line == 0)
+		{
+			lines.push_back("");
+		}
+		else
+		{
+			throw;
+		}
+	}
 	lines.insert(lines.begin() + line + 1, r.lines.cbegin(), r.lines.cend());
 }
 
@@ -75,18 +122,6 @@ void Editor::Buffer::deleteLines(int line, int count)
 	}
 	count = std::min(count, numLines() - line);
 	lines.erase(lines.cbegin() + line, lines.cbegin() + line + count);
-	if (lines.empty())
-	{
-		lines.emplace_back("");
-	}
-}
-
-int Editor::Buffer::length() const
-{
-	return std::accumulate(
-		lines.begin(), lines.end(), 0,
-		[](auto lhs, auto& s) { return lhs + s.length(); }
-	) + lines.size() - 1;
 }
 
 int Editor::Buffer::numLines() const
@@ -117,6 +152,10 @@ void Editor::Buffer::read(std::filesystem::path filePath)
 
 int Editor::Buffer::lineLength(int idx) const
 {
+	if (isEmpty())
+	{
+		return 0;
+	}
 	return lines[idx].length();
 }
 
@@ -124,6 +163,8 @@ std::string const& Editor::Buffer::getLine(int idx) const
 {
 	return lines[idx];
 }
+
+// *** //
 
 Editor::Editor()
 	: context{}
@@ -340,14 +381,19 @@ void Editor::handleKey(ncurses::Key k)
 					auto const& command = res.parsedCommand[0];
 					if (commandMatches(command, "f", "file"))
 					{
-						auto percentage = std::string{"No lines in buffer"};
+						auto fileName = file.string();
+						if (fileName == "")
+						{
+							fileName = "[No Name]";
+						}
+						auto stats = std::string{"--No lines in buffer--"};
 						if (buffer.numLines())
 						{
-							percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
+							auto percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
+							stats = std::to_string(buffer.numLines()) + " lines " + "--" + percentage + "--";
 						}
 						displayMessage(
-							"\"" + file.string() + "\" " + std::to_string(buffer.numLines()) + " lines " +
-							"--" + percentage + "--"
+							"\"" + fileName + "\" " + stats
 						);
 					}
 					else if (commandMatches(command, "q", "quit"))
@@ -361,9 +407,13 @@ void Editor::handleKey(ncurses::Key k)
 						{
 							open(res.parsedCommand[numTokens-1]);
 						}
-						else
+						else if (file != "")
 						{
 							open(file);
+						}
+						else
+						{
+							displayMessage("ERR: No file name");
 						}
 					}
 					// TODO :e[dit], :w[rite], :r[ead]
