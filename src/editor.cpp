@@ -145,7 +145,12 @@ void Editor::open(std::filesystem::path path)
 
 	if (not std::filesystem::exists(resolved_path))
 	{
-		displayMessage("Could not open `" + path.string() + "': file does not exist");
+		displayMessage("ERR: Could not open `" + path.string() + "': file does not exist");
+		return;
+	}
+	if (not std::filesystem::is_regular_file(resolved_path))
+	{
+		displayMessage("ERR: Could not open `" + path.string() + "': not a regular file");
 		return;
 	}
 
