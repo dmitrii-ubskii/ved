@@ -66,6 +66,8 @@ public:
 	};
 
 private:
+	std::filesystem::path file;
+
 	void handleKey(ncurses::Key);
 	void repaint();
 

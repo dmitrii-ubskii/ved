@@ -136,7 +136,8 @@ Editor::Editor()
 
 void Editor::open(std::filesystem::path path)
 {
-	buffer.read(path);
+	file = path;
+	buffer.read(file);
 	repaint();
 }
 
@@ -308,7 +309,7 @@ void Editor::handleKey(ncurses::Key k)
 					auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
 					statusLine.mvaddstr(
 						{},
-						"\"filename\" " + std::to_string(buffer.numLines()) + " lines " +
+						"\"" + file.string() + "\" " + std::to_string(buffer.numLines()) + " lines " +
 							"--" + std::to_string(percentage) + "%--"
 					);
 				}
