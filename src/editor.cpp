@@ -5,6 +5,8 @@
 #include <numeric>
 #include <string>
 
+#include <wordexp.h>
+
 #include "ncursespp/color.h"
 
 #include "ops.h"
@@ -136,7 +138,18 @@ Editor::Editor()
 
 void Editor::open(std::filesystem::path path)
 {
-	file = path;
+	wordexp_t p;
+	wordexp(path.c_str(), &p, 0);
+	auto resolved_path = std::filesystem::path{p.we_wordv[p.we_offs]};
+	wordfree(&p);
+
+	if (not std::filesystem::exists(resolved_path))
+	{
+		displayMessage("Could not open `" + path.string() + "': file does not exist");
+		return;
+	}
+
+	file = resolved_path;
 	buffer.read(file);
 	repaint();
 }
