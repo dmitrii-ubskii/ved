@@ -29,7 +29,7 @@ add_compile_options(
         -Wuseless-cast)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_compile_options(-s)
+    add_compile_options(-s -O3)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(-Og -ggdb3 -fsanitize=undefined)
     add_link_options(-fsanitize=undefined)
