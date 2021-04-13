@@ -340,11 +340,14 @@ void Editor::handleKey(ncurses::Key k)
 					auto const& command = res.parsedCommand[0];
 					if (commandMatches(command, "f", "file"))
 					{
-						auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
-						statusLine.mvaddstr(
-							{},
+						auto percentage = std::string{"No lines in buffer"};
+						if (buffer.numLines())
+						{
+							percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
+						}
+						displayMessage(
 							"\"" + file.string() + "\" " + std::to_string(buffer.numLines()) + " lines " +
-							"--" + std::to_string(percentage) + "%--"
+							"--" + percentage + "--"
 						);
 					}
 					else if (commandMatches(command, "q", "quit"))
