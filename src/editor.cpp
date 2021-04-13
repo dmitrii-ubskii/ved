@@ -94,7 +94,7 @@ int Editor::Buffer::numLines() const
 	return lines.size();
 }
 
-bool Editor::Buffer::is_empty() const
+bool Editor::Buffer::isEmpty() const
 {
 	return numLines() == 0;
 }

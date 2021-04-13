@@ -50,7 +50,7 @@ public:
 		int length() const;
 		int numLines() const;
 
-		bool is_empty() const;
+		bool isEmpty() const;
 		void clear();
 		void read(std::filesystem::path);
 
