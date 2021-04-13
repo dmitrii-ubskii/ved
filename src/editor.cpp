@@ -297,39 +297,45 @@ void Editor::handleKey(ncurses::Key k)
 		case Mode::Command:
 			if (commandOps.contains(k))
 			{
-				auto res = commandOps[k]({k, context, buffer, reg, cursor, windowInfo, mode});
-				auto needToRepaint = false;
+				auto res = commandOps[k]({k, cmdline, cmdlineCursor});
+
+				auto needToRepaint = res.cmdlineChanged;
+				if (res.cursorMoved)
+				{
+					cmdlineCursor = res.cursorPosition;
+				}
 				if (res.modeChanged)
 				{
 					mode = res.newMode;
+					cmdline = "";
+					cmdlineCursor = 0;
 					needToRepaint = true;
 				}
 				if (needToRepaint)
 				{
 					repaint();
 				}
-			}
-			else if (k == ncurses::Key::Enter)
-			{
-				statusLine.erase();
-				if (commandMatches(cmdline, "f", "file"))
+
+				if (not res.parsedCommand.empty())
 				{
-					auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
-					statusLine.mvaddstr(
-						{},
-						"\"" + file.string() + "\" " + std::to_string(buffer.numLines()) + " lines " +
+					statusLine.erase();
+					auto const& command = res.parsedCommand[0];
+					if (commandMatches(command, "f", "file"))
+					{
+						auto percentage = (cursor.line + 1) * 100 / buffer.numLines();
+						statusLine.mvaddstr(
+							{},
+							"\"" + file.string() + "\" " + std::to_string(buffer.numLines()) + " lines " +
 							"--" + std::to_string(percentage) + "%--"
-					);
+						);
+					}
+					else if (commandMatches(command, "q", "quit"))
+					{
+						quit = true;
+					}
+					statusLine.refresh();
+					// TODO :e[dit], :w[rite], :r[ead]
 				}
-				else if (commandMatches(cmdline, "q", "quit"))
-				{
-					quit = true;
-				}
-				statusLine.refresh();
-				// TODO :e[dit], :w[rite], :r[ead]
-				cmdline = "";
-				cmdlineCursor = 0;
-				mode = Mode::Normal;
 			}
 			else
 			{

@@ -113,7 +113,33 @@ static auto insertOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key::Enter, breakLine},
 };
 
-static auto commandOps = std::unordered_map<ncurses::Key, OperatorFunction>{
+struct CommandOperatorArgs
+{
+	ncurses::Key const key;
+
+	std::string& cmdline;
+	int const cmdlineCursor;
+};
+
+struct CommandOperatorResult
+{
+	bool cursorMoved{false};
+	int cursorPosition{0};
+
+	bool cmdlineChanged{false};
+
+	bool modeChanged{false};
+	Editor::Mode newMode{Editor::Mode::Normal};
+	std::vector<std::string> parsedCommand{};
+};
+
+using CommandOperatorFunction = CommandOperatorResult(*)(CommandOperatorArgs args);
+
+CommandOperatorResult startNormal(CommandOperatorArgs);
+CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs);
+CommandOperatorResult parseCmdline(CommandOperatorArgs);
+
+static auto commandOps = std::unordered_map<ncurses::Key, CommandOperatorFunction>{
 	// {ncurses::Key::Right, ...},
 	// {ncurses::Key::Left, ...},
 	// {ncurses::Key::Down, ...},
@@ -121,8 +147,8 @@ static auto commandOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	// {ncurses::Key::End, ...},
 	// {ncurses::Key::Home, ...},
 	{ncurses::Key::Escape, startNormal},
-	// {ncurses::Key::Backspace, ...},
-	// {ncurses::Key::Enter, ...},
+	{ncurses::Key::Backspace, deleteCmdlineChars},
+	{ncurses::Key::Enter, parseCmdline},
 };
 
 #endif // SRC_OPS_H_

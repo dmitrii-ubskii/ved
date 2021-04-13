@@ -379,3 +379,36 @@
 	};
 }
 
+// *** //
+
+CommandOperatorResult startNormal(CommandOperatorArgs)
+{
+	return {.modeChanged=true, .newMode=Editor::Mode::Normal};
+}
+
+CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs args)
+{
+	switch (args.key)
+	{
+		case ncurses::Key::Backspace:
+			if (args.cmdlineCursor > 0)
+			{
+				args.cmdline.erase(args.cmdlineCursor - 1);
+				return {.cursorMoved=true, .cursorPosition=args.cmdlineCursor-1, .cmdlineChanged=true};
+			}
+			else
+			{
+				return {};
+			}
+			break;
+
+		default:
+			throw;
+	}
+}
+
+CommandOperatorResult parseCmdline(CommandOperatorArgs args)
+{
+	return {.modeChanged=true, .newMode=Editor::Mode::Normal, .parsedCommand={args.cmdline}};
+}
+
