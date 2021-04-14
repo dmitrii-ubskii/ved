@@ -139,13 +139,14 @@ void Editor::Buffer::clear()
 	lines.clear();
 }
 
-void Editor::Buffer::read(std::filesystem::path filePath)
+void Editor::Buffer::read(std::filesystem::path const& filePath)
 {
 	auto fileHandler = std::ifstream(filePath);
 	for (std::string lineBuffer; std::getline(fileHandler, lineBuffer); )
 	{
 		lines.push_back(lineBuffer);
 	}
+	fileHandler.close();
 }
 
 int Editor::Buffer::lineLength(int idx) const
@@ -179,25 +180,30 @@ Editor::Editor()
 	repaint();
 }
 
-void Editor::open(std::filesystem::path path)
+std::filesystem::path resolvePath(std::filesystem::path const& path)
 {
 	wordexp_t p;
 	wordexp(path.c_str(), &p, 0);
-	auto resolved_path = std::filesystem::path{p.we_wordv[p.we_offs]};
+	auto resolvedPath = std::filesystem::path{p.we_wordv[p.we_offs]};
 	wordfree(&p);
+	return resolvedPath;
+}
 
-	if (not std::filesystem::exists(resolved_path))
+void Editor::open(std::filesystem::path const& path)
+{
+	auto resolvedPath = resolvePath(path);
+	if (not std::filesystem::exists(resolvedPath))
 	{
 		displayMessage("ERR: Could not open `" + path.string() + "': file does not exist");
 		return;
 	}
-	if (not std::filesystem::is_regular_file(resolved_path))
+	if (not std::filesystem::is_regular_file(resolvedPath))
 	{
 		displayMessage("ERR: Could not open `" + path.string() + "': not a regular file");
 		return;
 	}
 
-	file = resolved_path;
+	file = resolvedPath;
 
 	buffer.clear();
 	buffer.read(file);

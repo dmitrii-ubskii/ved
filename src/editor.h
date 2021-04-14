@@ -27,7 +27,7 @@ public:
 	Editor();
 
 	int mainLoop();
-	void open(std::filesystem::path);
+	void open(std::filesystem::path const&);
 
 	struct Register
 	{
@@ -51,7 +51,7 @@ public:
 
 		bool isEmpty() const;
 		void clear();
-		void read(std::filesystem::path);
+		void read(std::filesystem::path const&);
 
 		int lineLength(int idx) const;
 		std::string const& getLine(int idx) const;
