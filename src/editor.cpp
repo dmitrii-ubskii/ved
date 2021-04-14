@@ -142,10 +142,8 @@ void Editor::Buffer::clear()
 void Editor::Buffer::read(std::filesystem::path filePath)
 {
 	auto fileHandler = std::ifstream(filePath);
-	auto lineBuffer = std::string{};
-	while (not fileHandler.eof())
+	for (std::string lineBuffer; std::getline(fileHandler, lineBuffer); )
 	{
-		std::getline(fileHandler, lineBuffer);
 		lines.push_back(lineBuffer);
 	}
 }
