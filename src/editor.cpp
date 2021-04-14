@@ -416,9 +416,27 @@ void Editor::handleKey(ncurses::Key k)
 				if (not res.parsedCommand.empty())
 				{
 					statusLine.erase();
+
 					auto const& command = res.parsedCommand[0];
+					auto numTokens = res.parsedCommand.size();
+					auto force = Force::No;
+					if (numTokens > 1 && res.parsedCommand[1] == "!")
+					{
+						force = Force::Yes;
+					}
+					auto arg = std::optional<std::string>{};
+					if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
+					{
+						arg = res.parsedCommand[numTokens-1];
+					}
+
 					if (commandMatches(command, "f", "file"))
 					{
+						if (force == Force::Yes || arg.has_value())
+						{
+							displayMessage("ERR: Trailing characters");
+							return;
+						}
 						auto fileName = file.string();
 						if (fileName == "")
 						{
@@ -436,14 +454,19 @@ void Editor::handleKey(ncurses::Key k)
 					}
 					else if (commandMatches(command, "q", "quit"))
 					{
+						if (arg.has_value())
+						{
+							displayMessage("ERR: Trailing characters");
+							return;
+						}
 						quit = true;
 					}
+
 					else if (commandMatches(command, "e", "edit"))
 					{
-						auto numTokens = res.parsedCommand.size();
-						if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
+						if (arg.has_value())
 						{
-							open(res.parsedCommand[numTokens-1]);
+							open(*arg);
 						}
 						else if (file != "")
 						{
@@ -456,15 +479,9 @@ void Editor::handleKey(ncurses::Key k)
 					}
 					else if (commandMatches(command, "w", "write"))
 					{
-						auto numTokens = res.parsedCommand.size();
-						auto force = Force::No;
-						if (numTokens > 1 && res.parsedCommand[1] == "!")
+						if (arg.has_value())
 						{
-							force = Force::Yes;
-						}
-						if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
-						{
-							write(res.parsedCommand[numTokens-1], force);
+							write(*arg);
 						}
 						else if (file != "")
 						{
