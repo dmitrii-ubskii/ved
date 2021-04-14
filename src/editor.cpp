@@ -227,13 +227,24 @@ void Editor::open(std::filesystem::path const& path)
 	repaint();
 }
 
-void Editor::write(std::filesystem::path const& path)
+void Editor::write(std::filesystem::path const& path, Force force)
 {
 	auto resolvedPath = resolvePath(path);
 	if (std::filesystem::exists(resolvedPath) && file != resolvedPath)
 	{
-		displayMessage("ERR: File exists (add ! to override)");
-		return;
+		if (force == Force::Yes)
+		{
+			if (not std::filesystem::is_regular_file(resolvedPath))
+			{
+				displayMessage("ERR: Could not open `" + path.string() + "' for writing: not a regular file");
+				return;
+			}
+		}
+		else
+		{
+			displayMessage("ERR: File exists (add ! to override)");
+			return;
+		}
 	}
 
 	buffer.write(resolvedPath);
@@ -446,13 +457,18 @@ void Editor::handleKey(ncurses::Key k)
 					else if (commandMatches(command, "w", "write"))
 					{
 						auto numTokens = res.parsedCommand.size();
+						auto force = Force::No;
+						if (numTokens > 1 && res.parsedCommand[1] == "!")
+						{
+							force = Force::Yes;
+						}
 						if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
 						{
-							write(res.parsedCommand[numTokens-1]);
+							write(res.parsedCommand[numTokens-1], force);
 						}
 						else if (file != "")
 						{
-							write(file);
+							write(file, force);
 						}
 						else
 						{

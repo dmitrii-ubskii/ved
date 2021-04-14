@@ -21,6 +21,11 @@ struct WindowInfo
 	int leftCol;
 };
 
+enum class Force
+{
+	Yes, No
+};
+
 class Editor
 {
 public:
@@ -72,7 +77,7 @@ private:
 	void handleKey(ncurses::Key);
 	void repaint();
 
-	void write(std::filesystem::path const&);
+	void write(std::filesystem::path const&, Force = Force::No);
 
 	void displayMessage(std::string_view message);
 
