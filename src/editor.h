@@ -52,6 +52,7 @@ public:
 		bool isEmpty() const;
 		void clear();
 		void read(std::filesystem::path const&);
+		void write(std::filesystem::path const&) const;
 
 		int lineLength(int idx) const;
 		std::string const& getLine(int idx) const;
@@ -70,6 +71,8 @@ private:
 
 	void handleKey(ncurses::Key);
 	void repaint();
+
+	void write(std::filesystem::path const&);
 
 	void displayMessage(std::string_view message);
 

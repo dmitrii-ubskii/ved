@@ -149,6 +149,16 @@ void Editor::Buffer::read(std::filesystem::path const& filePath)
 	fileHandler.close();
 }
 
+void Editor::Buffer::write(std::filesystem::path const& filePath) const
+{
+	auto fileHandler = std::ofstream(filePath);
+	for (auto& line: lines)
+	{
+		fileHandler << line << "\n";
+	}
+	fileHandler.close();
+}
+
 int Editor::Buffer::lineLength(int idx) const
 {
 	if (isEmpty())
@@ -215,6 +225,19 @@ void Editor::open(std::filesystem::path const& path)
 	cursor.col = std::min(cursor.col, std::max(0, cursorLineLength - 1));
 	
 	repaint();
+}
+
+void Editor::write(std::filesystem::path const& path)
+{
+	auto resolvedPath = resolvePath(path);
+	if (std::filesystem::exists(resolvedPath) && file != resolvedPath)
+	{
+		displayMessage("ERR: File exists (add ! to override)");
+		return;
+	}
+
+	buffer.write(resolvedPath);
+	displayMessage("\"" + resolvedPath.string() + "\" " + std::to_string(buffer.numLines()) + " lines written");
 }
 
 bool commandMatches(
@@ -420,7 +443,23 @@ void Editor::handleKey(ncurses::Key k)
 							displayMessage("ERR: No file name");
 						}
 					}
-					// TODO :e[dit], :w[rite], :r[ead]
+					else if (commandMatches(command, "w", "write"))
+					{
+						auto numTokens = res.parsedCommand.size();
+						if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
+						{
+							write(res.parsedCommand[numTokens-1]);
+						}
+						else if (file != "")
+						{
+							write(file);
+						}
+						else
+						{
+							displayMessage("ERR: No file name");
+						}
+					}
+					// TODO :r[ead]
 				}
 
 				if (res.message != "")
