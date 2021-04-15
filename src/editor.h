@@ -32,7 +32,7 @@ public:
 	Editor();
 
 	int mainLoop();
-	void open(std::filesystem::path const&);
+	void open(std::filesystem::path const&, Force = Force::No);
 
 	struct Register
 	{
@@ -94,6 +94,7 @@ private:
 
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
 	bool wrap{false};
+	bool modified{false};
 
 	bool quit{false};
 

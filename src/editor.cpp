@@ -199,7 +199,7 @@ std::filesystem::path resolvePath(std::filesystem::path const& path)
 	return resolvedPath;
 }
 
-void Editor::open(std::filesystem::path const& path)
+void Editor::open(std::filesystem::path const& path, Force force)
 {
 	auto resolvedPath = resolvePath(path);
 	if (not std::filesystem::exists(resolvedPath))
@@ -212,11 +212,17 @@ void Editor::open(std::filesystem::path const& path)
 		displayMessage("ERR: Could not open `" + path.string() + "': not a regular file");
 		return;
 	}
+	if (modified and force == Force::No)
+	{
+		displayMessage("ERR: No write since last change (add ! to override)");
+		return;
+	}
 
 	file = resolvedPath;
 
 	buffer.clear();
 	buffer.read(file);
+	modified = false;
 
 	cursor.line = std::min(cursor.line, buffer.numLines()-1);
 	windowInfo.topLine = std::min(windowInfo.topLine, buffer.numLines()-1);
@@ -249,6 +255,7 @@ void Editor::write(std::filesystem::path const& path, Force force)
 
 	buffer.write(resolvedPath);
 	displayMessage("\"" + resolvedPath.string() + "\" " + std::to_string(buffer.numLines()) + " lines written");
+	modified = false;
 }
 
 bool commandMatches(
@@ -283,6 +290,10 @@ void Editor::handleKey(ncurses::Key k)
 
 				operatorCount = res.count;
 
+				if (res.bufferChanged)
+				{
+					modified = true;
+				}
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -340,6 +351,10 @@ void Editor::handleKey(ncurses::Key k)
 			if (insertOps.contains(k))
 			{
 				auto res = insertOps[k]({k, context, buffer, reg, cursor, windowInfo, mode});
+				if (res.bufferChanged)
+				{
+					modified = true;
+				}
 				auto needToRepaint = res.bufferChanged;
 				if (res.cursorMoved)
 				{
@@ -386,6 +401,7 @@ void Editor::handleKey(ncurses::Key k)
 				{
 					buffer.insert(cursor, static_cast<char>(ch), 1);
 					cursor.col++;
+					modified = true;
 				}
 				repaint();
 			}
@@ -448,6 +464,10 @@ void Editor::handleKey(ncurses::Key k)
 							auto percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
 							stats = std::to_string(buffer.numLines()) + " lines " + "--" + percentage + "--";
 						}
+						if (modified)
+						{
+							stats = "[Modified] " + stats;
+						}
 						displayMessage(
 							"\"" + fileName + "\" " + stats
 						);
@@ -459,6 +479,11 @@ void Editor::handleKey(ncurses::Key k)
 							displayMessage("ERR: Trailing characters");
 							return;
 						}
+						if (modified and force == Force::No)
+						{
+							displayMessage("ERR: No write since last change (add ! to override)");
+							return;
+						}
 						quit = true;
 					}
 
@@ -466,11 +491,11 @@ void Editor::handleKey(ncurses::Key k)
 					{
 						if (arg.has_value())
 						{
-							open(*arg);
+							open(*arg, force);
 						}
 						else if (file != "")
 						{
-							open(file);
+							open(file, force);
 						}
 						else
 						{
