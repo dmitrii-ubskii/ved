@@ -46,14 +46,8 @@ void Editor::Buffer::insertLine(int line)
 {
 	if (isEmpty())
 	{
-		if (line == 0)
-		{
-			lines.push_back("");
-		}
-		else
-		{
-			throw;
-		}
+		assert(line == 0);
+		lines.push_back("");
 	}
 
 	lines.insert(lines.begin() + line + 1, "");
@@ -63,14 +57,8 @@ void Editor::Buffer::breakLine(CursorPosition p)
 {
 	if (isEmpty())
 	{
-		if (p.line == 0 && p.col == 0)
-		{
-			lines.push_back("");
-		}
-		else
-		{
-			throw;
-		}
+		assert(p.line == 0 && p.col == 0);
+		lines.push_back("");
 	}
 
 	assert(p.line >= 0);
@@ -118,14 +106,8 @@ void Editor::Buffer::putFrom(Register const& r, int line)
 {
 	if (isEmpty())
 	{
-		if (line == 0)
-		{
-			lines.push_back("");
-		}
-		else
-		{
-			throw;
-		}
+		assert(line == 0);
+		lines.push_back("");
 	}
 	lines.insert(lines.begin() + line + 1, r.lines.cbegin(), r.lines.cend());
 }
