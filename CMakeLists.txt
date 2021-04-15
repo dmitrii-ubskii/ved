@@ -26,7 +26,7 @@ add_compile_options(
         -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Wunused
         -Woverloaded-virtual -Wpedantic -Wmisleading-indentation -Wnull-dereference
         -Wdouble-promotion -Wformat=2 -Wduplicated-cond -Wduplicated-branches -Wlogical-op
-        -Wuseless-cast)
+        -Wuseless-cast -Wconversion -Wsign-conversion)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_options(-s -O3)

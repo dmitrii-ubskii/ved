@@ -1,5 +1,7 @@
 #include "ops.h"
 
+#include <cassert>
+
 [[nodiscard]] OperatorResult moveCursor(OperatorArgs args)
 {
 	if (args.buffer.isEmpty())
@@ -360,7 +362,10 @@
 	{
 		throw;
 	}
-	auto c = args.context.getch();
+	auto ch = args.context.getch();
+	assert(ch < 256);  // valid char
+
+	auto c = static_cast<char>(ch);
 	auto count = std::min(args.count.value_or(1), args.buffer.lineLength(args.cursor.line) - args.cursor.col);
 	args.buffer.erase(args.cursor, count);
 	args.buffer.insert(args.cursor, c, count);
@@ -438,7 +443,8 @@ CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs args)
 		case ncurses::Key::Backspace:
 			if (args.cmdlineCursor > 0)
 			{
-				args.cmdline.erase(args.cmdlineCursor - 1);
+				auto cursorIndex = static_cast<std::size_t>(args.cmdlineCursor - 1);
+				args.cmdline.erase(cursorIndex);
 				return {.cursorMoved=true, .cursorPosition=args.cmdlineCursor-1, .cmdlineChanged=true};
 			}
 			else

@@ -1,5 +1,6 @@
 #include "editor.h"
 
+#include <cassert>
 #include <cctype>
 #include <fstream>
 #include <numeric>
@@ -13,24 +14,32 @@
 
 void Editor::Buffer::erase(CursorPosition p, int count)
 {
-	lines[p.line].erase(p.col, count);
+	assert(p.line >= 0);
+	auto lineIndex = static_cast<std::size_t>(p.line);
+	assert(p.col >= 0);
+	auto colIndex = static_cast<std::size_t>(p.col);
+	assert(count > 0);
+	auto sizeCount = static_cast<std::size_t>(count);
+
+	lines[lineIndex].erase(colIndex, sizeCount);
 }
 
 void Editor::Buffer::insert(CursorPosition p, char ch, int count)
 {
 	if (isEmpty())
 	{
-		if (p.line == 0 && p.col == 0)
-		{
-			lines.push_back("");
-		}
-		else
-		{
-			throw;
-		}
+		assert(p.line == 0 && p.col == 0);
+		lines.push_back("");
 	}
 
-	lines[p.line].insert(p.col, count, ch);
+	assert(p.line >= 0);
+	auto lineIndex = static_cast<std::size_t>(p.line);
+	assert(p.col >= 0);
+	auto colIndex = static_cast<std::size_t>(p.col);
+	assert(count > 0);
+	auto sizeCount = static_cast<std::size_t>(count);
+
+	lines[lineIndex].insert(colIndex, sizeCount, ch);
 }
 
 void Editor::Buffer::insertLine(int line)
@@ -64,15 +73,18 @@ void Editor::Buffer::breakLine(CursorPosition p)
 		}
 	}
 
-	std::size_t colIndex = p.col;
-	if (lines[p.line].length() == colIndex)
+	assert(p.line >= 0);
+	auto lineIndex = static_cast<std::size_t>(p.line);
+	assert(p.col >= 0);
+	auto colIndex = static_cast<std::size_t>(p.col);
+	if (lines[lineIndex].length() == colIndex)
 	{
 		lines.emplace(lines.begin() + p.line + 1);
 	}
 	else
 	{
-		auto tail = lines[p.line].substr(colIndex);
-		lines[p.line] = lines[p.line].substr(0, colIndex);
+		auto tail = lines[lineIndex].substr(colIndex);
+		lines[lineIndex] = lines[lineIndex].substr(0, colIndex);
 		lines.emplace(lines.begin() + p.line + 1, tail);
 	}
 }
@@ -83,7 +95,11 @@ void Editor::Buffer::joinLines(int line, int count)
 	{
 		return;
 	}
-	lines[line] = std::accumulate(
+
+	assert(line >= 0);
+	auto lineIndex = static_cast<std::size_t>(line);
+
+	lines[lineIndex] = std::accumulate(
 		lines.cbegin() + line,
 		lines.cbegin() + line + count,
 		std::string{}, [](auto const& acc, auto const& lhs) { return acc + lhs; }
@@ -126,7 +142,7 @@ void Editor::Buffer::deleteLines(int line, int count)
 
 int Editor::Buffer::numLines() const
 {
-	return lines.size();
+	return static_cast<int>(lines.size());
 }
 
 bool Editor::Buffer::isEmpty() const
@@ -165,12 +181,16 @@ int Editor::Buffer::lineLength(int idx) const
 	{
 		return 0;
 	}
-	return lines[idx].length();
+	assert(idx >= 0);
+	auto index = static_cast<std::size_t>(idx);
+	return static_cast<int>(lines[index].length());
 }
 
 std::string const& Editor::Buffer::getLine(int idx) const
 {
-	return lines[idx];
+	assert(idx >= 0);
+	auto index = static_cast<std::size_t>(idx);
+	return lines[index];
 }
 
 // *** //
@@ -534,7 +554,7 @@ void Editor::handleKey(ncurses::Key k)
 				auto ch = k.keycode;
 				if (ch < 256 && std::isprint(ch))
 				{
-					cmdline += ch;
+					cmdline += static_cast<char>(ch);
 					cmdlineCursor++;
 				}
 				repaint();
@@ -547,6 +567,10 @@ void Editor::repaint()
 {
 	editorWindow.erase();
 	lineNumbers.erase();
+	
+	assert(windowInfo.leftCol >= 0);
+	auto leftEdge = static_cast<std::size_t>(windowInfo.leftCol);
+
 	auto lineY = 0;
 	for (auto i = windowInfo.topLine; i < buffer.numLines(); i++)
 	{
@@ -558,12 +582,16 @@ void Editor::repaint()
 		{
 			if (buffer.lineLength(i) > windowInfo.leftCol)
 			{
-				editorWindow.mvaddnstr({0, lineY}, buffer.getLine(i).substr(windowInfo.leftCol), editorWindow.get_rect().s.w);
+				editorWindow.mvaddnstr(
+					{0, lineY},
+					buffer.getLine(i).substr(leftEdge),
+					editorWindow.get_rect().s.w
+				);
 			}
 		}
-		auto lineNumberString = std::to_string(i + 1);
-		int x = 3 - lineNumberString.length();
-		lineNumbers.mvaddnstr({x, lineY}, lineNumberString, lineNumbers.get_rect().s.w-1);
+		auto lineNumber = std::to_string(i + 1);
+		auto x = 3 - static_cast<int>(lineNumber.length());
+		lineNumbers.mvaddnstr({x, lineY}, lineNumber, lineNumbers.get_rect().s.w-1);
 		lineY += getLineVirtualHeight(buffer.getLine(i));
 	}
 	for (auto y = lineY; y < editorWindow.get_rect().s.h; y++)
@@ -617,13 +645,15 @@ std::size_t Editor::getLineLength(std::string_view lineContents) const
 	return lineContents.length();
 }
 
-std::size_t Editor::getLineVirtualHeight(std::string_view lineContents) const
+int Editor::getLineVirtualHeight(std::string_view lineContents) const
 {
 	if (not wrap)
 	{
 		return 1;
 	}
-	return (lineContents.length() + 1) / editorWindow.get_rect().s.w + 1;
+	auto width = editorWindow.get_rect().s.w;
+	assert(width > 0);
+	return static_cast<int>(lineContents.length() + 1) / width + 1;
 }
 
 ncurses::Point Editor::getScreenCursorPosition() const

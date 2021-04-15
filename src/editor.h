@@ -90,7 +90,7 @@ private:
 	ncurses::Point getScreenCursorPosition() const;
 
 	std::size_t getLineLength(std::string_view lineContents) const;
-	std::size_t getLineVirtualHeight(std::string_view lineContents) const;
+	int getLineVirtualHeight(std::string_view lineContents) const;
 
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
 	bool wrap{false};
