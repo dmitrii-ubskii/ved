@@ -396,7 +396,7 @@ void Editor::handleKey(ncurses::Key k)
 			}
 			else
 			{
-				auto ch = static_cast<int>(k);
+				auto ch = k.keycode;
 				if (ch < 256 && std::isprint(ch))
 				{
 					buffer.insert(cursor, static_cast<char>(ch), 1);
@@ -531,7 +531,7 @@ void Editor::handleKey(ncurses::Key k)
 			}
 			else
 			{
-				auto ch = static_cast<int>(k);
+				auto ch = k.keycode;
 				if (ch < 256 && std::isprint(ch))
 				{
 					cmdline += ch;
