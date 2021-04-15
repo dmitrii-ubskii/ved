@@ -405,6 +405,17 @@ void Editor::handleKey(ncurses::Key k)
 					cursor.col++;
 					modified = true;
 				}
+				if (not wrap)
+				{
+					while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
+					{
+						windowInfo.leftCol += 20;
+					}
+					while (windowInfo.leftCol > cursor.col)
+					{
+						windowInfo.leftCol -= 20;
+					}
+				}
 				repaint();
 			}
 			break;
