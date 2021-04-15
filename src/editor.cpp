@@ -517,6 +517,10 @@ void Editor::handleKey(ncurses::Key k)
 							displayMessage("ERR: No file name");
 						}
 					}
+					else
+					{
+						displayMessage("ERR: Not an editor command: " + command);
+					}
 					// TODO :r[ead]
 				}
 
