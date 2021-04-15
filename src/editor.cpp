@@ -184,10 +184,10 @@ Editor::Editor()
 	, statusLine{{{0, context.get_rect().s.h - 1}, {}}}
 {
 	context.raw(true);
-	editorWindow.setbackground(ncurses::Color::Yellow, ncurses::Color::Blue);
-	editorWindow.setcolor(ncurses::Color::Yellow, ncurses::Color::Blue);
-	lineNumbers.setbackground(ncurses::Color::Gray, ncurses::Color::Purple);
-	lineNumbers.setcolor(ncurses::Color::Gray, ncurses::Color::Purple);
+	editorWindow.setbackground(ncurses::Color::White, ncurses::Color::Black);
+	editorWindow.setcolor(ncurses::Color::White, ncurses::Color::Black);
+	lineNumbers.setbackground(ncurses::Color::Gray, ncurses::Color::Black);
+	lineNumbers.setcolor(ncurses::Color::Gray, ncurses::Color::Black);
 	context.refresh();
 	repaint();
 }
