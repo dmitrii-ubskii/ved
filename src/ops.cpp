@@ -447,9 +447,9 @@ CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs args)
 				args.cmdline.erase(cursorIndex);
 				return {.cursorMoved=true, .cursorPosition=args.cmdlineCursor-1, .cmdlineChanged=true};
 			}
-			else
+			else  // backspacing over the ':'
 			{
-				return {};
+				return startNormal(args);
 			}
 			break;
 
