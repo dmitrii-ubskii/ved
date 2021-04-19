@@ -238,11 +238,10 @@ void Editor::open(std::filesystem::path const& path, Force force)
 	modified = false;
 
 	cursor.line = std::min(cursor.line, buffer.numLines()-1);
-	windowInfo.topLine = std::min(windowInfo.topLine, buffer.numLines()-1);
-
 	auto cursorLineLength = buffer.lineLength(cursor.line);
 	cursor.col = std::min(cursor.col, std::max(0, cursorLineLength - 1));
 	
+	adjustViewport();
 	repaint();
 }
 
@@ -493,29 +492,8 @@ void Editor::handleKey(ncurses::Key k)
 				if (res.cursorMoved)
 				{
 					cursor = res.cursorPosition;
-					if (windowInfo.topLine > cursor.line)
-					{
-						windowInfo.topLine = cursor.line;
-						needToRepaint = true;
-					}
-					while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
-					{
-						windowInfo.topLine++;
-						needToRepaint = true;
-					}
-					if (not wrap)
-					{
-						while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
-						{
-							windowInfo.leftCol += 20;
-							needToRepaint = true;
-						}
-						while (windowInfo.leftCol > cursor.col)
-						{
-							windowInfo.leftCol -= 20;
-							needToRepaint = true;
-						}
-					}
+					adjustViewport();
+					needToRepaint = true;
 					editorWindow.move(getScreenCursorPosition());
 				}
 				if (res.modeChanged)
@@ -567,29 +545,8 @@ void Editor::handleKey(ncurses::Key k)
 				if (res.cursorMoved)
 				{
 					cursor = res.cursorPosition;
-					if (windowInfo.topLine > cursor.line)
-					{
-						windowInfo.topLine = cursor.line;
-						needToRepaint = true;
-					}
-					while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
-					{
-						windowInfo.topLine++;
-						needToRepaint = true;
-					}
-					if (not wrap)
-					{
-						while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
-						{
-							windowInfo.leftCol += 20;
-							needToRepaint = true;
-						}
-						while (windowInfo.leftCol > cursor.col)
-						{
-							windowInfo.leftCol -= 20;
-							needToRepaint = true;
-						}
-					}
+					adjustViewport();
+					needToRepaint = true;
 					editorWindow.move(getScreenCursorPosition());
 				}
 				if (res.modeChanged)
@@ -611,17 +568,7 @@ void Editor::handleKey(ncurses::Key k)
 					cursor.col++;
 					modified = true;
 				}
-				if (not wrap)
-				{
-					while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
-					{
-						windowInfo.leftCol += 20;
-					}
-					while (windowInfo.leftCol > cursor.col)
-					{
-						windowInfo.leftCol -= 20;
-					}
-				}
+				adjustViewport();
 				repaint();
 			}
 			break;
@@ -765,6 +712,29 @@ int Editor::getLineVirtualHeight(std::string_view lineContents) const
 	auto width = editorWindow.get_rect().s.w;
 	assert(width > 0);
 	return static_cast<int>(lineContents.length() + 1) / width + 1;
+}
+
+void Editor::adjustViewport()
+{
+	if (windowInfo.topLine > cursor.line)
+	{
+		windowInfo.topLine = cursor.line;
+	}
+	while (getScreenCursorPosition().y >= editorWindow.get_rect().s.h)
+	{
+		windowInfo.topLine++;
+	}
+	if (not wrap)
+	{
+		while (cursor.col - windowInfo.leftCol >= editorWindow.get_rect().s.w)
+		{
+			windowInfo.leftCol += 20;
+		}
+		while (windowInfo.leftCol > cursor.col)
+		{
+			windowInfo.leftCol -= 20;
+		}
+	}
 }
 
 ncurses::Point Editor::getScreenCursorPosition() const

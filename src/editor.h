@@ -97,6 +97,8 @@ private:
 	int getLineVirtualHeight(std::string_view lineContents) const;
 
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
+	void adjustViewport();
+
 	bool wrap{false};
 	bool modified{false};
 
