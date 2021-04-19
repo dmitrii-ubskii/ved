@@ -100,7 +100,7 @@ private:
 	WindowInfo windowInfo{.topLine=0, .leftCol=0};
 	void adjustViewport();
 
-	bool wrap{false};
+	bool wrap{true};
 	bool modified{false};
 
 	bool quit{false};

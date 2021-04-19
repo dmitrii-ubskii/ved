@@ -747,6 +747,13 @@ std::size_t Editor::getLineLength(std::string_view lineContents) const
 	return lineContents.length();
 }
 
+int ceilingDivide(int divident, int divisor)
+{
+	auto quotient = divident / divisor;
+	auto remainder = divident % divisor;
+	return quotient + (remainder ? 1 : 0);
+}
+
 int Editor::getLineVirtualHeight(std::string_view lineContents) const
 {
 	if (not wrap)
@@ -755,7 +762,7 @@ int Editor::getLineVirtualHeight(std::string_view lineContents) const
 	}
 	auto width = editorWindow.get_rect().s.w;
 	assert(width > 0);
-	return static_cast<int>(lineContents.length() + 1) / width + 1;
+	return std::max(1, ceilingDivide(static_cast<int>(lineContents.length()), width));
 }
 
 void Editor::adjustViewport()
