@@ -461,6 +461,40 @@ void Editor::executeCommand()
 	}
 }
 
+void Editor::doSearch()
+{
+	auto searchString = cmdline.substr(1);
+
+	for (auto line = cursor.line; line < buffer.numLines(); line++)
+	{
+		auto startPos = line == cursor.line ? static_cast<std::size_t>(cursor.col + 1) : 0;
+		if (
+			auto pos = buffer.getLine(line).find(searchString, startPos);
+			pos != std::string::npos
+		)
+		{
+			cursor.line = line;
+			cursor.col = static_cast<int>(pos);
+			adjustViewport();
+			repaint();
+			return;
+		}
+	}
+
+	for (auto line = 0; line <= cursor.line; line++)
+	{
+		if (auto pos = buffer.getLine(line).find(searchString); pos != std::string::npos)
+		{
+			cursor.line = line;
+			cursor.col = static_cast<int>(pos);
+			adjustViewport();
+			repaint();
+			displayMessage("search hit BOTTOM, continuing at TOP");
+			return;
+		}
+	}
+}
+
 void Editor::handleKey(ncurses::Key k)
 {
 	switch (mode)
@@ -506,6 +540,10 @@ void Editor::handleKey(ncurses::Key k)
 						{
 							case ':': case ';':
 								cmdline = ":";
+								break;
+
+							case '/':
+								cmdline = "/";
 								break;
 
 							default:
@@ -591,6 +629,10 @@ void Editor::handleKey(ncurses::Key k)
 					if (cmdline.starts_with(':'))
 					{
 						executeCommand();
+					}
+					else if (cmdline.starts_with('/'))
+					{
+						doSearch();
 					}
 
 					cmdline = "";

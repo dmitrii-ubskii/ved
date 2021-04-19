@@ -82,6 +82,7 @@ private:
 	void write(std::filesystem::path const&, Force = Force::No);
 
 	void executeCommand();
+	void doSearch();
 	std::vector<std::string> parseCommand();
 	void displayMessage(std::string_view message);
 

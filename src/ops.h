@@ -94,8 +94,7 @@ static auto normalOps = std::unordered_map<ncurses::Key, OperatorFunction>{
 	{ncurses::Key{'i'}, startInsert},
 	{ncurses::Key{'a'}, startInsert},
 	{ncurses::Key{'o'}, startInsert},
-	// TODO not implemented: Command mode
-	// {ncurses::Key{'/'}, startCommand},
+	{ncurses::Key{'/'}, startCommand},
 	{ncurses::Key{':'}, startCommand},
 	{ncurses::Key{';'}, startCommand},
 	{ncurses::Key{'z'}, redraw},
