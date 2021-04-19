@@ -602,7 +602,7 @@ void Editor::handleKey(ncurses::Key k)
 			else
 			{
 				auto ch = k.keycode;
-				if (ch < 256 && (std::isprint(ch) || ch == '\t'))
+				if (ch < 256 && (std::isprint(ch) || ch < 040))
 				{
 					buffer.insert(cursor, static_cast<char>(ch), 1);
 					cursor.col++;
@@ -742,9 +742,23 @@ void Editor::displayMessage(std::string_view message)
 	editorWindow.refresh();
 }
 
-std::size_t Editor::getLineLength(std::string_view lineContents) const
+int visibleCharLengthAccumulate(int accumulator, char c)
 {
-	return lineContents.length();
+	if (c == '\t')
+	{
+		return accumulator + 8 - (accumulator % 8);
+	}
+	if (c < 040)  // 000 NUL to 037 US
+	{
+		return accumulator + 2;
+	}
+
+	return accumulator + 1;
+}
+
+int Editor::getLineLength(std::string_view lineContents) const
+{
+	return std::accumulate(lineContents.begin(), lineContents.end(), 0, visibleCharLengthAccumulate);
 }
 
 int ceilingDivide(int divident, int divisor)
@@ -762,7 +776,7 @@ int Editor::getLineVirtualHeight(std::string_view lineContents) const
 	}
 	auto width = editorWindow.get_rect().s.w;
 	assert(width > 0);
-	return std::max(1, ceilingDivide(static_cast<int>(lineContents.length()), width));
+	return std::max(1, ceilingDivide(getLineLength(lineContents), width));
 }
 
 void Editor::adjustViewport()
@@ -790,20 +804,32 @@ void Editor::adjustViewport()
 
 ncurses::Point Editor::getScreenCursorPosition() const
 {
+	if (buffer.isEmpty())
+	{
+		assert(cursor.col == 0);
+		assert(cursor.line == 0);
+		return {0, 0};
+	}
+
 	ncurses::Point pos{0, 0};
+
 	for (auto i = windowInfo.topLine; i < cursor.line; i++)
 	{
 		pos.y += getLineVirtualHeight(buffer.getLine(i));
 	}
 
+	auto& lineContents = buffer.getLine(cursor.line);
+	pos.x = std::accumulate(
+		lineContents.begin(), lineContents.begin() + cursor.col, 0, visibleCharLengthAccumulate
+	);
 	if (wrap)
 	{
-		pos.x = cursor.col % editorWindow.get_rect().s.w;
-		pos.y += cursor.col / editorWindow.get_rect().s.w;
+		pos.y += pos.x / editorWindow.get_rect().s.w;
+		pos.x = pos.x % editorWindow.get_rect().s.w;
 	}
 	else
 	{
-		pos.x = cursor.col - windowInfo.leftCol;
+		pos.x -= windowInfo.leftCol;
 	}
 	return pos;
 }
