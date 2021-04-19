@@ -602,7 +602,7 @@ void Editor::handleKey(ncurses::Key k)
 			else
 			{
 				auto ch = k.keycode;
-				if (ch < 256 && std::isprint(ch))
+				if (ch < 256 && (std::isprint(ch) || ch == '\t'))
 				{
 					buffer.insert(cursor, static_cast<char>(ch), 1);
 					cursor.col++;
