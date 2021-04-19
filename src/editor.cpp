@@ -147,6 +147,17 @@ void Editor::Buffer::read(std::filesystem::path const& filePath)
 	fileHandler.close();
 }
 
+void Editor::Buffer::read(std::filesystem::path const& filePath, int line)
+{
+	auto fileHandler = std::ifstream(filePath);
+	auto it = lines.begin() + line + 1;
+	for (std::string lineBuffer; std::getline(fileHandler, lineBuffer); )
+	{
+		it = lines.insert(it, lineBuffer) + 1;
+	}
+	fileHandler.close();
+}
+
 void Editor::Buffer::write(std::filesystem::path const& filePath) const
 {
 	auto fileHandler = std::ofstream(filePath);
@@ -231,6 +242,28 @@ void Editor::open(std::filesystem::path const& path, Force force)
 
 	auto cursorLineLength = buffer.lineLength(cursor.line);
 	cursor.col = std::min(cursor.col, std::max(0, cursorLineLength - 1));
+	
+	repaint();
+}
+
+void Editor::read(std::filesystem::path const& path)
+{
+	auto resolvedPath = resolvePath(path);
+	if (not std::filesystem::exists(resolvedPath))
+	{
+		displayMessage("ERR: Could not open `" + path.string() + "': file does not exist");
+		return;
+	}
+	if (not std::filesystem::is_regular_file(resolvedPath))
+	{
+		displayMessage("ERR: Could not open `" + path.string() + "': not a regular file");
+		return;
+	}
+
+	buffer.read(resolvedPath, cursor.line);
+	modified = true;
+
+	windowInfo.topLine = std::min(windowInfo.topLine, buffer.numLines()-1);
 	
 	repaint();
 }
@@ -530,11 +563,25 @@ void Editor::handleKey(ncurses::Key k)
 							displayMessage("ERR: No file name");
 						}
 					}
+					else if (commandMatches(command, "r", "read"))
+					{
+						if (force == Force::Yes)
+						{
+							displayMessage("ERR: No ! allowed");
+						}
+						else if (arg.has_value())
+						{
+							read(*arg);
+						}
+						else
+						{
+							displayMessage("ERR: No file name");
+						}
+					}
 					else
 					{
 						displayMessage("ERR: Not an editor command: " + command);
 					}
-					// TODO :r[ead]
 				}
 
 				if (res.message != "")
