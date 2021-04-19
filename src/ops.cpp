@@ -441,7 +441,7 @@ CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs args)
 	switch (args.key)
 	{
 		case ncurses::Key::Backspace:
-			if (args.cmdlineCursor > 0)
+			if (args.cmdlineCursor > 1)
 			{
 				auto cursorIndex = static_cast<std::size_t>(args.cmdlineCursor - 1);
 				args.cmdline.erase(cursorIndex);
