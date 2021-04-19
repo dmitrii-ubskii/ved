@@ -260,12 +260,15 @@ void Editor::read(std::filesystem::path const& path)
 		return;
 	}
 
+	auto prevLines = buffer.numLines();
 	buffer.read(resolvedPath, cursor.line);
+	auto newLines = buffer.numLines() - prevLines;
+
 	modified = true;
 
-	windowInfo.topLine = std::min(windowInfo.topLine, buffer.numLines()-1);
-	
 	repaint();
+
+	displayMessage("\"" + resolvedPath.string() + "\" " + std::to_string(newLines) + " lines read");
 }
 
 void Editor::write(std::filesystem::path const& path, Force force)
