@@ -493,6 +493,8 @@ void Editor::doSearch()
 			return;
 		}
 	}
+
+	displayMessage("ERR: Search string not found: " + searchString);
 }
 
 void Editor::handleKey(ncurses::Key k)
