@@ -130,7 +130,6 @@ struct CommandOperatorResult
 
 	bool modeChanged{false};
 	Editor::Mode newMode{Editor::Mode::Normal};
-	std::vector<std::string> parsedCommand{};
 
 	std::string message{""};
 };
@@ -139,7 +138,6 @@ using CommandOperatorFunction = CommandOperatorResult(*)(CommandOperatorArgs arg
 
 CommandOperatorResult startNormal(CommandOperatorArgs);
 CommandOperatorResult deleteCmdlineChars(CommandOperatorArgs);
-CommandOperatorResult parseCmdline(CommandOperatorArgs);
 
 static auto commandOps = std::unordered_map<ncurses::Key, CommandOperatorFunction>{
 	// {ncurses::Key::Right, ...},
@@ -150,7 +148,7 @@ static auto commandOps = std::unordered_map<ncurses::Key, CommandOperatorFunctio
 	// {ncurses::Key::Home, ...},
 	{ncurses::Key::Escape, startNormal},
 	{ncurses::Key::Backspace, deleteCmdlineChars},
-	{ncurses::Key::Enter, parseCmdline},
+	{ncurses::Key::Enter, startNormal},
 };
 
 #endif // SRC_OPS_H_

@@ -81,6 +81,8 @@ private:
 	void read(std::filesystem::path const&);
 	void write(std::filesystem::path const&, Force = Force::No);
 
+	void executeCommand();
+	std::vector<std::string> parseCommand();
 	void displayMessage(std::string_view message);
 
 	ncurses::Ncurses context;

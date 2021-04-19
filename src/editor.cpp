@@ -305,6 +305,163 @@ bool commandMatches(
 	return command.starts_with(requiredPrefix) && fullCommand.starts_with(command);
 }
 
+std::vector<std::string> Editor::parseCommand()
+{
+	if (cmdline == ":")
+	{
+		return {};
+	}
+
+	auto parsedCommand = std::vector<std::string>{};
+
+	auto firstSpace = cmdline.find(" ");
+	auto command = cmdline.substr(1, firstSpace - 1);
+
+	if (command.ends_with("!"))
+	{
+		parsedCommand.emplace_back(command.substr(0, command.length() - 1));
+		parsedCommand.push_back("!");
+	}
+	else
+	{
+		parsedCommand.emplace_back(command);
+	}
+
+	if (firstSpace != std::string::npos)
+	{
+		auto tailStart = cmdline.find_first_not_of(" ", firstSpace);
+		if (tailStart != std::string::npos)
+		{
+			auto tail = cmdline.substr(tailStart, cmdline.find_last_not_of(" "));
+			if (tail.find_first_of(" ") != std::string::npos)
+			{
+				displayMessage("ERR: Trailing characters");
+				return {};
+			}
+			parsedCommand.emplace_back(tail);
+		}
+	}
+
+	return parsedCommand;
+}
+
+void Editor::executeCommand()
+{
+	auto parsedCommand = parseCommand();
+	if (parsedCommand.empty())
+	{
+		return;
+	}
+
+	statusLine.erase();
+
+	auto const& command = parsedCommand[0];
+	auto numTokens = parsedCommand.size();
+	auto force = Force::No;
+	if (numTokens > 1 && parsedCommand[1] == "!")
+	{
+		force = Force::Yes;
+	}
+	auto arg = std::optional<std::string>{};
+	if (numTokens > 1 && parsedCommand[numTokens-1] != "!")
+	{
+		arg = parsedCommand[numTokens-1];
+	}
+
+	if (commandMatches(command, "f", "file"))
+	{
+		if (force == Force::Yes || arg.has_value())
+		{
+			displayMessage("ERR: Trailing characters");
+		}
+		else
+		{
+			auto fileName = file.string();
+			if (fileName == "")
+			{
+				fileName = "[No Name]";
+			}
+			auto stats = std::string{"--No lines in buffer--"};
+			if (buffer.numLines())
+			{
+				auto percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
+				stats = std::to_string(buffer.numLines()) + " lines " + "--" + percentage + "--";
+			}
+			if (modified)
+			{
+				stats = "[Modified] " + stats;
+			}
+			displayMessage(
+				"\"" + fileName + "\" " + stats
+			);
+		}
+	}
+	else if (commandMatches(command, "q", "quit"))
+	{
+		if (arg.has_value())
+		{
+			displayMessage("ERR: Trailing characters");
+		}
+		else if (modified and force == Force::No)
+		{
+			displayMessage("ERR: No write since last change (add ! to override)");
+		}
+		else
+		{
+			quit = true;
+		}
+	}
+	else if (commandMatches(command, "e", "edit"))
+	{
+		if (arg.has_value())
+		{
+			open(*arg, force);
+		}
+		else if (file != "")
+		{
+			open(file, force);
+		}
+		else
+		{
+			displayMessage("ERR: No file name");
+		}
+	}
+	else if (commandMatches(command, "w", "write"))
+	{
+		if (arg.has_value())
+		{
+			write(*arg);
+		}
+		else if (file != "")
+		{
+			write(file, force);
+		}
+		else
+		{
+			displayMessage("ERR: No file name");
+		}
+	}
+	else if (commandMatches(command, "r", "read"))
+	{
+		if (force == Force::Yes)
+		{
+			displayMessage("ERR: No ! allowed");
+		}
+		else if (arg.has_value())
+		{
+			read(*arg);
+		}
+		else
+		{
+			displayMessage("ERR: No file name");
+		}
+	}
+	else
+	{
+		displayMessage("ERR: Not an editor command: " + command);
+	}
+}
+
 void Editor::handleKey(ncurses::Key k)
 {
 	switch (mode)
@@ -365,6 +522,19 @@ void Editor::handleKey(ncurses::Key k)
 				{
 					mode = res.newMode;
 					needToRepaint = true;
+					if (mode == Mode::Command)
+					{
+						switch (k)
+						{
+							case ':': case ';':
+								cmdline = ":";
+								break;
+
+							default:
+								throw;
+						}
+						cmdlineCursor = 1;
+					}
 				}
 				if (needToRepaint)
 				{
@@ -469,122 +639,20 @@ void Editor::handleKey(ncurses::Key k)
 				if (res.modeChanged)
 				{
 					mode = res.newMode;
+					repaint();
+
+					if (cmdline.starts_with(':'))
+					{
+						executeCommand();
+					}
+
 					cmdline = "";
 					cmdlineCursor = 0;
-					needToRepaint = true;
+					needToRepaint = false;
 				}
 				if (needToRepaint)
 				{
 					repaint();
-				}
-
-				if (not res.parsedCommand.empty())
-				{
-					statusLine.erase();
-
-					auto const& command = res.parsedCommand[0];
-					auto numTokens = res.parsedCommand.size();
-					auto force = Force::No;
-					if (numTokens > 1 && res.parsedCommand[1] == "!")
-					{
-						force = Force::Yes;
-					}
-					auto arg = std::optional<std::string>{};
-					if (numTokens > 1 && res.parsedCommand[numTokens-1] != "!")
-					{
-						arg = res.parsedCommand[numTokens-1];
-					}
-
-					if (commandMatches(command, "f", "file"))
-					{
-						if (force == Force::Yes || arg.has_value())
-						{
-							displayMessage("ERR: Trailing characters");
-							return;
-						}
-						auto fileName = file.string();
-						if (fileName == "")
-						{
-							fileName = "[No Name]";
-						}
-						auto stats = std::string{"--No lines in buffer--"};
-						if (buffer.numLines())
-						{
-							auto percentage = std::to_string((cursor.line + 1) * 100 / buffer.numLines()) + "%";
-							stats = std::to_string(buffer.numLines()) + " lines " + "--" + percentage + "--";
-						}
-						if (modified)
-						{
-							stats = "[Modified] " + stats;
-						}
-						displayMessage(
-							"\"" + fileName + "\" " + stats
-						);
-					}
-					else if (commandMatches(command, "q", "quit"))
-					{
-						if (arg.has_value())
-						{
-							displayMessage("ERR: Trailing characters");
-							return;
-						}
-						if (modified and force == Force::No)
-						{
-							displayMessage("ERR: No write since last change (add ! to override)");
-							return;
-						}
-						quit = true;
-					}
-
-					else if (commandMatches(command, "e", "edit"))
-					{
-						if (arg.has_value())
-						{
-							open(*arg, force);
-						}
-						else if (file != "")
-						{
-							open(file, force);
-						}
-						else
-						{
-							displayMessage("ERR: No file name");
-						}
-					}
-					else if (commandMatches(command, "w", "write"))
-					{
-						if (arg.has_value())
-						{
-							write(*arg);
-						}
-						else if (file != "")
-						{
-							write(file, force);
-						}
-						else
-						{
-							displayMessage("ERR: No file name");
-						}
-					}
-					else if (commandMatches(command, "r", "read"))
-					{
-						if (force == Force::Yes)
-						{
-							displayMessage("ERR: No ! allowed");
-						}
-						else if (arg.has_value())
-						{
-							read(*arg);
-						}
-						else
-						{
-							displayMessage("ERR: No file name");
-						}
-					}
-					else
-					{
-						displayMessage("ERR: Not an editor command: " + command);
-					}
 				}
 
 				if (res.message != "")
@@ -655,7 +723,7 @@ void Editor::repaint()
 			break;
 
 		case Mode::Command:
-			statusLine.mvaddstr({0,0}, ":" + cmdline);
+			statusLine.mvaddstr({0,0}, cmdline);
 			break;
 	}
 	statusLine.refresh();
@@ -670,7 +738,7 @@ void Editor::repaint()
 			break;
 
 		case Mode::Command:
-			statusLine.move({1 + cmdlineCursor, 0});
+			statusLine.move({cmdlineCursor, 0});
 			break;
 	}
 }
